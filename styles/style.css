@@ -388,3 +388,103 @@ form small {
     transform: translateY(0);
   }
 }
+
+/* ========================
+   Mobile Responsiveness
+======================== */
+@media (max-width: 768px) {
+  .topnav {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px;
+  }
+
+  .nav-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .nav-right {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  .app-name {
+    font-size: 1.1rem;
+  }
+
+  .logo.small-logo {
+    height: 32px;
+  }
+
+  .ping-effect-gif {
+    height: 40px;
+    transform: translate(-20%, -50%);
+  }
+
+  header.hero {
+    padding: 30px 16px 24px;
+  }
+
+  .logo.large-logo {
+    height: 100px;
+  }
+
+  .tagline {
+    font-size: 1rem;
+  }
+
+  .cta-button {
+    font-size: 1rem;
+    padding: 10px 20px;
+  }
+
+  .features,
+  .preview,
+  main.content {
+    padding: 20px 16px;
+  }
+
+  .mockup {
+    max-width: 100%;
+    height: auto;
+    margin-top: 20px;
+  }
+
+  form {
+    padding: 24px 16px;
+    margin: 20px auto;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  form input[type="text"],
+  form input[type="email"],
+  form textarea,
+  form select {
+    width: 100%;
+  }
+
+  form button[type="submit"] {
+    width: 100%;
+    font-size: 1rem;
+    padding: 12px;
+  }
+
+  .legal-support {
+    padding: 24px 16px;
+  }
+
+  .footer-nav {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  footer {
+    padding: 16px;
+    font-size: 0.85em;
+  }
+}
