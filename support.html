@@ -12,11 +12,10 @@
 
 <body>
   <header class="topnav">
-    <a href="index.html" class="nav-left" style="text-decoration: none;">
+    <a href="index.html" class="nav-left home-link">
       <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
-
     <nav class="nav-right">
       <a href="index.html">Home</a>
       <a href="faq.html">FAQs</a>
@@ -29,9 +28,9 @@
 
   <main class="content">
     <section>
-      <h2>📬 Email Support</h2>
-      <p>If you’re experiencing issues or have a question, fill out this form and your email app will open with the
-        message pre-filled:</p>
+      <h2>📬 Contact Support</h2>
+      <p>If you need help with Pinged, please fill in the form below. Your default email app will open with a support
+        message ready to send.</p>
 
       <form action="mailto:support@pinged.nz?subject=Pinged Support Request" method="POST" enctype="text/plain">
         <label for="name">🧑 Your Name:</label>
@@ -51,23 +50,34 @@
           <option value="Other">Other</option>
         </select>
 
-        <label for="message">📝 Message:</label>
+        <label for="message">📝 Describe the issue or your question:</label>
         <textarea id="message" name="📝 Message" required></textarea>
 
         <button type="submit">Send Message</button>
-        <small>* This form opens your default mail client to send the message.</small>
+        <small>* This form opens your mail client to send the support request.</small>
       </form>
     </section>
 
     <section>
-      <h2>🔗 Quick Links</h2>
+      <h2>📖 Help Resources</h2>
       <ul>
-        <li><a href="faq.html">How does Pinged work?</a></li>
-        <li><a href="faq.html">Is my data private?</a></li>
-        <li><a href="privacy.html">Read our Privacy Policy</a></li>
+        <li><a href="faq.html">Frequently Asked Questions</a></li>
+        <li><a href="privacy.html">Our Privacy Policy</a></li>
+        <li><a href="terms.html">Terms of Use</a></li>
+        <li><a href="mailto:support@pinged.nz">Email Support</a></li>
+        <li><a href="https://www.netsafe.org.nz/">Report Concerns (via Netsafe NZ)</a></li>
       </ul>
     </section>
   </main>
+
+  <section>
+    <h2>⚖️ Legal Notice</h2>
+    <p>Pinged is intended for social navigation only. While we aim to ensure accurate information and privacy, Pinged is
+      not responsible for user behavior, location inaccuracies, or misuse of data.</p>
+    <p>For more, read our full <a href="disclaimer.html">Disclaimer</a>, <a href="privacy.html">Privacy Policy</a>, and
+      <a href="terms.html">Terms of Service</a>.
+    </p>
+  </section>
 
   <footer>
     <p>&copy; 2025 Pinged. All rights reserved.</p>
