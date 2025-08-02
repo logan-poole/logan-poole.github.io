@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# If you want to block search engines from indexing:
+# Disallow: /

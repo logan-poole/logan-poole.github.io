@@ -4,32 +4,62 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pinged – Real-Time Friend Finder</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="styles/style.css" />
+  <link rel="shortcut icon" href="assets/favicon.ico" type="image/x-icon" />
+  <script defer src="scripts/theme-toggle.js"></script>
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Pinged – Real-Time Friend Finder" />
+  <meta property="og:description" content="Pinged helps you find and navigate to your friends using real-time GPS and AR overlays." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://pinged.nz/" />
+  <meta property="og:image" content="https://pinged.nz/assets/logo.png" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Pinged – Real-Time Friend Finder" />
+  <meta name="twitter:description" content="Privacy-first GPS and AR friend tracking. Stay connected." />
+  <meta name="twitter:image" content="https://pinged.nz/assets/logo.png" />
 </head>
 <body>
-  <header>
-    <img src="images/ping'd.png" alt="Pinged Logo" />
-    <h1>Pinged</h1>
-    <p>Real-time navigation to your friends, events, and meetups.</p>
+  <header class="topnav">
+    <div class="nav-left">
+      <img src="assets/logo.png" alt="Pinged Logo" class="logo small-logo" />
+      <span class="app-name">Pinged</span>
+    </div>
+    <nav class="nav-right">
+      <a href="index.html">Home</a>
+      <a href="faq.html">FAQs</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+      <a href="support.html">Support</a>
+      <button id="themeToggle" class="theme-toggle">🌓</button>
+    </nav>
   </header>
 
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="faq.html">FAQs</a>
-    <a href="privacy.html">Privacy</a>
-    <a href="terms.html">Terms</a>
-    <a href="support.html">Support</a>
-  </nav>
-
   <main>
-    <section>
-      <h2>Download the App</h2>
-      <p>Coming soon to Google Play. Stay tuned!</p>
+    <section class="features">
+      <div class="feature">
+        <h2>📍 Real-Time Map</h2>
+        <p>See where your friends are in real time with live distance and smart friend markers.</p>
+      </div>
+      <div class="feature">
+        <h2>🧭 AR Compass</h2>
+        <p>Turn on your camera and follow directional arrows in AR to navigate directly to friends.</p>
+      </div>
+      <div class="feature">
+        <h2>💬 Chat with Media</h2>
+        <p>Send photos, gifs, and voice messages — with end-to-end privacy and optional self-destruct.</p>
+      </div>
+      <div class="feature">
+        <h2>🔐 Built for Privacy</h2>
+        <p>You control your visibility. No ads. No trackers. Just trusted location sharing.</p>
+      </div>
     </section>
 
-    <section>
-      <h2>About Pinged</h2>
-      <p>Pinged helps you find your friends in real-time using GPS, maps, AR overlays, and in-app chat — all with privacy-first controls.</p>
+    <section class="preview">
+      <h2>🔎 App Preview</h2>
+      <img src="images/Ping'd.png" alt="App Screenshot" class="mockup" />
     </section>
   </main>
 
