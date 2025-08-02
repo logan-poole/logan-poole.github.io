@@ -246,7 +246,7 @@ form input[type="text"],
 form input[type="email"],
 form textarea,
 form select {
-  width: 95%;
+  width: 90%;
   padding: 12px;
   border-radius: 8px;
   border: 1px solid #ccc;
