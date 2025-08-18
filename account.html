@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pinged – Account</title>
+  <link rel="stylesheet" href="styles/style.css" />
+  <link rel="shortcut icon" href="assets/favicon.ico" type="image/x-icon" />
+  <script defer src="scripts/theme-toggle.js"></script>
+  <style>
+    .container { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+    label { display:block; margin:.5rem 0 .25rem }
+    input, select, button { padding:.6rem .8rem; margin:.25rem 0 }
+    .btns button{ margin-right:.5rem }
+    .status { background:#eef; border:1px solid #ccd; padding:8px; margin:12px 0; font-family:monospace }
+    pre { background:#f6f8fa; padding:12px; overflow:auto; }
+  </style>
+</head>
+
+<body>
+  <!-- Header / Nav -->
+  <header class="topnav">
+    <a href="index.html" class="nav-left" style="text-decoration: none;">
+      <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
+      <span class="app-name">Pinged</span>
+    </a>
+
+    <nav class="nav-right">
+      <a href="index.html">Home</a>
+      <a href="faq.html">FAQs</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+      <a href="support.html">Support</a>
+      <a href="account.html" class="active">Account</a>
+      <button id="themeToggle" class="theme-toggle">🌓</button>
+    </nav>
+  </header>
+
+  <!-- Main -->
+  <main class="container">
+    <h1>🔑 Account</h1>
+
+    <div id="status" class="status">Loading config…</div>
+
+    <section>
+      <label>Email</label>
+      <input id="email" type="email" placeholder="you@example.com" />
+
+      <label>Password</label>
+      <input id="password" type="password" placeholder="••••••••" />
+
+      <div class="btns" style="margin-top:.5rem;">
+        <button id="btn-signup">Sign up</button>
+        <button id="btn-signin">Sign in</button>
+        <button id="btn-signout">Sign out</button>
+      </div>
+    </section>
+
+    <section style="margin-top:2rem;">
+      <h2>Your profile</h2>
+      <form id="profile" onsubmit="return false;">
+        <label>Username</label>
+        <input id="username" placeholder="username" />
+
+        <label>Visibility</label>
+        <select id="visibility">
+          <option value="public">public</option>
+          <option value="friends">friends</option>
+          <option value="private">private</option>
+        </select>
+
+        <div style="margin-top:.5rem;">
+          <button id="btn-save">Save profile</button>
+        </div>
+      </form>
+    </section>
+
+    <section style="margin-top:2rem;">
+      <h3>Log</h3>
+      <pre id="log"></pre>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2025 Pinged. All rights reserved.</p>
+  </footer>
+
+  <!-- 1) Load runtime config (created manually or by GitHub Action) -->
+  <script src="scripts/config.js"></script>
+
+  <!-- 2) Supabase JS + page logic -->
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+    const statusEl = document.getElementById('status')
+    const logEl = document.getElementById('log')
+    const $ = (id) => document.getElementById(id)
+    const log = (m) => { logEl.textContent = m; console.log('[Pinged/Account]', m) }
+    const setStatus = (m) => { statusEl.textContent = m }
+
+    // --- Read config from config.js ---
+    const cfg = window.PINGED_CONFIG || {}
+    if (!cfg.SUPABASE_URL || !cfg.SUPABASE_KEY) {
+      setStatus('❌ Missing config.js or keys. Ensure config.js is present on the site.')
+      throw new Error('Missing PINGED_CONFIG keys')
+    }
+    if (!cfg.SUPABASE_URL.startsWith('https://') || !cfg.SUPABASE_URL.includes('.supabase.co')) {
+      setStatus('❌ SUPABASE_URL must be https://<ref>.supabase.co')
+      throw new Error('Bad SUPABASE_URL')
+    }
+    if (!cfg.SUPABASE_KEY.startsWith('eyJ')) {
+      setStatus('❌ SUPABASE_KEY must be the anon key (starts with eyJ…), not sb_secret_…')
+      throw new Error('Bad SUPABASE_KEY')
+    }
+
+    const supabase = createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY)
+    setStatus('Connecting to Supabase…')
+
+    // Quick ping (confirms CORS + keys)
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) setStatus('❌ Could not talk to Supabase: ' + error.message)
+      else setStatus('✅ Connected. Session: ' + (data.session ? 'present' : 'none'))
+    })
+
+    // --- Auth handlers ---
+    $('#btn-signup').onclick = async () => {
+      const email = $('#email').value.trim()
+      const password = $('#password').value
+      const { data, error } = await supabase.auth.signUp({
+        email, password,
+        options: { emailRedirectTo: 'https://pinged.nz/account.html' }
+      })
+      log(error ? `❌ SignUp: ${error.message}` : `✅ SignUp: ${data.user?.email ?? ''} (check Auth settings if confirmation required)`)
+      if (!error) loadProfile()
+    }
+
+    $('#btn-signin').onclick = async () => {
+      const email = $('#email').value.trim()
+      const password = $('#password').value
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      log(error ? `❌ SignIn: ${error.message}` : `✅ Signed in as ${data.user.email}`)
+      if (!error) loadProfile()
+    }
+
+    $('#btn-signout').onclick = async () => {
+      await supabase.auth.signOut()
+      log('👋 Signed out'); $('#profile').reset()
+    }
+
+    async function loadProfile() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return log('Not signed in')
+      const { data, error } = await supabase
+        .from('users')
+        .select('username, visibility')
+        .eq('id', user.id)
+        .single()
+      if (error && error.code !== 'PGRST116') { // PGRST116=no rows
+        return log(`Load profile error: ${error.message}`)
+      }
+      $('#username').value = data?.username ?? ''
+      $('#visibility').value = data?.visibility ?? 'friends'
+      log(`📥 Profile loaded for ${user.email}`)
+    }
+
+    $('#btn-save').onclick = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return log('Not signed in')
+      const row = {
+        id: user.id,
+        username: $('#username').value.trim(),
+        visibility: $('#visibility').value
+      }
+      const { error } = await supabase.from('users').upsert(row, { onConflict: 'id' })
+      log(error ? `❌ Save error: ${error.message}` : '✅ Profile saved')
+    }
+
+    // Auto-load profile if session exists
+    supabase.auth.getSession().then(({ data }) => { if (data.session) loadProfile() })
+  </script>
+</body>
+</html>

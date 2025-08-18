@@ -16,7 +16,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Generate config.js from repo secrets (not stored in git)
+      # Generate config.js at deploy time (NOT stored in git)
       - name: Create runtime config
         run: |
           cat > config.js <<'EOF'
