@@ -1,3 +1,8 @@
+<!-- =======================================================================
+     FILE: terms.html
+     PURPOSE:
+       - Public Terms page; nav toggles via ui.js.
+     ======================================================================= -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,56 +11,37 @@
   <title>Terms – Pinged</title>
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
-  <script defer src="scripts/theme-toggle.js"></script>
 </head>
 <body>
   <header class="topnav">
-    <a href="index.html" class="home-link">
-      <img src="assets/logo.png" alt="Pinged Logo" class="logo small-logo" />
+    <a href="index.html" class="nav-left" style="text-decoration:none;">
+      <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <a href="index.html">Home</a>
-      <a href="faq.html">FAQs</a>
-      <a href="privacy.html">Privacy</a>
-      <a href="terms.html">Terms</a>
-      <a href="support.html">Support</a>
-      <button id="themeToggle" class="theme-toggle">🌓</button>
+      <a href="index.html"   data-auth="guest">Home</a>
+      <a href="faq.html"     data-auth="guest">FAQs</a>
+      <a href="privacy.html" data-auth="guest">Privacy</a>
+      <a href="terms.html"   data-auth="guest">Terms</a>
+      <a href="support.html" data-auth="guest">Support</a>
+      <a href="dashboard.html" data-auth="authed">Dashboard</a>
+      <a href="feed.html"      data-auth="authed">Feed</a>
+      <a href="map.html"       data-auth="authed">Map</a>
+      <button id="themeToggle" class="theme-toggle" type="button">🌓</button>
     </nav>
   </header>
 
   <main class="content">
-    <h2>📜 Terms of Service</h2>
+    <h2>Terms of Service</h2>
     <div class="legal-block">
-      <p>By using Pinged, you agree to comply with and be bound by the following terms and conditions. Please review them carefully.</p>
-      <h3>1. Acceptance of Terms</h3>
-      <p>By accessing the app or website, you acknowledge that you have read, understood, and agree to be bound by these terms.</p>
-      <h3>2. Modifications</h3>
-      <p>Pinged reserves the right to modify these terms at any time. Continued use constitutes acceptance of the updated terms.</p>
-      <h3>3. User Conduct</h3>
-      <p>You agree to use Pinged only for lawful purposes and not to engage in any behavior that could harm the service or other users.</p>
-      <h3>4. Limitation of Liability</h3>
-      <p>We are not responsible for any damages arising from your use of the app. Use at your own risk.</p>
-      <h3>5. Account Responsibility</h3>
-      <p>You are responsible for maintaining the security of your account and any activity that occurs under it.</p>
-      <h3>6. Termination</h3>
-      <p>We reserve the right to terminate your access for violations of these terms.</p>
-    </div>
-
-    <div class="legal-block">
-      <h3>Disclaimer</h3>
-      <p>Pinged is provided "as is" without warranty of any kind. We are not responsible for lost data, technical issues, or reliance on the platform for safety-critical use cases.</p>
+      <p>Student project, provided as-is.</p>
     </div>
   </main>
 
-  <footer>
-    <p>&copy; 2025 Pinged. All rights reserved.</p>
-    <div class="footer-nav">
-      <a href="privacy.html">Privacy Policy</a>
-      <a href="terms.html">Terms</a>
-      <a href="support.html">Support</a>
-      <a href="disclaimer.html">Disclaimer</a>
-    </div>
-  </footer>
+  <footer><p>&copy; 2025 Pinged. All rights reserved.</p></footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="./scripts/ui.js?v=11"></script>
+  <script defer src="./scripts/theme-toggle.js?v=2"></script>
 </body>
 </html>

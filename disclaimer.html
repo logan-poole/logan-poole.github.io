@@ -1,86 +1,47 @@
+<!-- =======================================================================
+     FILE: disclaimer.html
+     PURPOSE:
+       - Public Disclaimer page; nav toggles via ui.js.
+     ======================================================================= -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Disclaimer – Pinged</title>
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
-  <script defer src="scripts/theme-toggle.js"></script>
 </head>
-
 <body>
   <header class="topnav">
-    <a href="index.html" class="nav-left home-link">
+    <a href="index.html" class="nav-left" style="text-decoration:none;">
       <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <a href="index.html">Home</a>
-      <a href="faq.html">FAQs</a>
-      <a href="privacy.html">Privacy</a>
-      <a href="terms.html">Terms</a>
-      <a href="support.html">Support</a>
-      <button id="themeToggle" class="theme-toggle">🌓</button>
+      <a href="index.html"   data-auth="guest">Home</a>
+      <a href="faq.html"     data-auth="guest">FAQs</a>
+      <a href="privacy.html" data-auth="guest">Privacy</a>
+      <a href="terms.html"   data-auth="guest">Terms</a>
+      <a href="support.html" data-auth="guest">Support</a>
+      <a href="dashboard.html" data-auth="authed">Dashboard</a>
+      <a href="feed.html"      data-auth="authed">Feed</a>
+      <a href="map.html"       data-auth="authed">Map</a>
+      <button id="themeToggle" class="theme-toggle" type="button">🌓</button>
     </nav>
   </header>
 
   <main class="content">
     <section>
-      <h2>⚠️ Legal Disclaimer</h2>
-      <p><strong>Effective Date:</strong> July 29, 2025</p>
-      <p>By using the Pinged app and services, you acknowledge and agree to the following disclaimers:</p>
-      <ul>
-        <li>Pinged is intended as a general navigation and location-sharing tool only. It is not a safety or emergency
-          service.</li>
-        <li>We do not guarantee accuracy, availability, or performance at all times due to factors outside our control
-          (e.g. GPS issues, mobile network outages).</li>
-        <li>Location data may be delayed, unavailable, or imprecise in certain environments (e.g. underground, rural
-          areas).</li>
-        <li>Users are solely responsible for how they use the app and for ensuring appropriate behavior when sharing or
-          requesting location information.</li>
-        <li>Pinged and its developers are not liable for any damages or disputes arising from improper or unauthorized
-          use of the app.</li>
-      </ul>
+      <h2>Legal Disclaimer</h2>
+      <p>This is a student project and is provided “as-is”.</p>
     </section>
+  </main>
 
-    <section>
-      <h2>🧠 Use With Awareness</h2>
-      <p>Pinged is designed for social connection and navigation convenience. Please use it responsibly and never rely
-        on it as your only source of location awareness, especially in critical or hazardous environments.</p>
-    </section>
+  <footer><p>&copy; 2025 Pinged. All rights reserved.</p></footer>
 
-    <div class="legal-support">
-      <h3><span class="icon">📢</span> Need Help or Have Concerns?</h3>
-      <p>
-        For any questions or reports related to legal use, liability, or user behavior,
-        please contact us directly at <a href="mailto:support@pinged.nz">support@pinged.nz</a>.
-      </p>
-      <p>
-        You can also find external guidance at
-        <a href="https://www.netsafe.org.nz/" target="_blank" rel="noopener noreferrer">
-          Netsafe New Zealand
-        </a>.
-      </p>
-
-      <h3><span class="icon">⚖️</span> Legal Notice</h3>
-      <p>
-        Pinged is intended for social navigation only. While we aim to ensure accurate information and privacy,
-        Pinged is not responsible for user behavior, location inaccuracies, or misuse of data.
-      </p>
-      <p>
-        For more, read our full
-        <a href="disclaimer.html">Disclaimer</a>,
-        <a href="privacy.html">Privacy Policy</a>, and
-        <a href="terms.html">Terms of Service</a>.
-      </p>
-    </div>
-
-
-    <footer>
-      <p>&copy; 2025 Pinged. All rights reserved.</p>
-    </footer>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="./scripts/ui.js?v=11"></script>
+  <script defer src="./scripts/theme-toggle.js?v=2"></script>
 </body>
-
 </html>

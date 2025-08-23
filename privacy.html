@@ -1,93 +1,45 @@
+<!-- =======================================================================
+     FILE: privacy.html
+     PURPOSE:
+       - Public Privacy page; nav toggles via ui.js.
+     ======================================================================= -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Privacy Policy – Pinged</title>
+  <title>Privacy – Pinged</title>
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
-  <script defer src="scripts/theme-toggle.js"></script>
 </head>
-
 <body>
   <header class="topnav">
-    <a href="index.html" class="nav-left home-link">
+    <a href="index.html" class="nav-left" style="text-decoration:none;">
       <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <a href="index.html">Home</a>
-      <a href="faq.html">FAQs</a>
-      <a href="privacy.html">Privacy</a>
-      <a href="terms.html">Terms</a>
-      <a href="support.html">Support</a>
-      <button id="themeToggle" class="theme-toggle">🌓</button>
+      <a href="index.html"   data-auth="guest">Home</a>
+      <a href="faq.html"     data-auth="guest">FAQs</a>
+      <a href="privacy.html" data-auth="guest">Privacy</a>
+      <a href="terms.html"   data-auth="guest">Terms</a>
+      <a href="support.html" data-auth="guest">Support</a>
+      <a href="dashboard.html" data-auth="authed">Dashboard</a>
+      <a href="feed.html"      data-auth="authed">Feed</a>
+      <a href="map.html"       data-auth="authed">Map</a>
+      <button id="themeToggle" class="theme-toggle" type="button">🌓</button>
     </nav>
   </header>
 
   <main class="content">
-    <section>
-      <h2>🔐 Privacy Policy</h2>
-      <p><strong>Effective Date:</strong> July 29, 2025</p>
-      <p>Pinged takes your privacy seriously. We collect only the data necessary to provide our services and do not sell or share personal information with third parties.</p>
-      <ul>
-        <li>Location is only shared with approved friends and groups.</li>
-        <li>All messages and data are encrypted where possible.</li>
-        <li>We do not track your behavior outside the app.</li>
-        <li>You can request deletion of your data at any time by contacting support.</li>
-      </ul>
-    </section>
-
-    <section>
-      <h2>📁 What We Collect</h2>
-      <ul>
-        <li>Email address and username</li>
-        <li>Location data (only when actively sharing)</li>
-        <li>Basic device info (for performance and diagnostics)</li>
-      </ul>
-    </section>
-
-    <section>
-      <h2>🛠 Your Privacy Controls</h2>
-      <p>We offer full control over your privacy preferences inside the Pinged app under Settings → Privacy. You can:</p>
-      <ul>
-        <li>Disable location sharing at any time</li>
-        <li>Control who can see your status or ping you</li>
-        <li>Delete your account permanently</li>
-      </ul>
-    </section>
-
-    <div class="legal-support">
-      <h3><span class="icon">📢</span> Need Help or Have Concerns?</h3>
-      <p>
-        For any questions or reports related to privacy or security,
-        please contact us directly at <a href="mailto:support@pinged.nz">support@pinged.nz</a>.
-      </p>
-      <p>
-        You can also find external guidance at
-        <a href="https://www.privacy.org.nz/" target="_blank" rel="noopener noreferrer">
-          The NZ Privacy Commissioner
-        </a>.
-      </p>
-
-      <h3><span class="icon">⚖️</span> Legal Notice</h3>
-      <p>
-        Pinged is committed to privacy-first development. We use industry-standard safeguards to protect your data,
-        but no service can guarantee 100% security.
-      </p>
-      <p>
-        For more, read our full
-        <a href="disclaimer.html">Disclaimer</a>,
-        <a href="privacy.html">Privacy Policy</a>, and
-        <a href="terms.html">Terms of Service</a>.
-      </p>
-    </div>
+    <h2>Privacy Policy</h2>
+    <p>We only store what’s necessary to make the app work. No ads, no sale of data.</p>
   </main>
 
-  <footer>
-    <p>&copy; 2025 Pinged. All rights reserved.</p>
-  </footer>
-</body>
+  <footer><p>&copy; 2025 Pinged. All rights reserved.</p></footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="./scripts/ui.js?v=11"></script>
+  <script defer src="./scripts/theme-toggle.js?v=2"></script>
+</body>
 </html>

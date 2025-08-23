@@ -1,0 +1,224 @@
+/* =======================================================================================
+   styles/map.css — Map page (Mapbox GL, feed-style layout)
+   - Map fills viewport minus topnav + footer
+   - Embed mode (?embed=1 or iframe) → full height
+   - Subtle in-map icon toolbar, left-opening style menu
+   - Geocoder search control sizing
+   - Puck, friend, and beacon marker styles + popup
+======================================================================================= */
+
+/* --- Main map container sizing --- */
+body.map-page main.content {
+    max-width: none;
+    width: 100%;
+    padding: 0 !important;
+    /* full-bleed map */
+}
+
+body.map-page #map {
+    position: relative;
+    width: 100%;
+    min-height: calc(100vh - 140px);
+    /* adjust if topnav/footer change */
+}
+
+html.is-embed body.map-page #map {
+    min-height: 100vh !important;
+}
+
+/* Mapbox control layering */
+.mapboxgl-control-container {
+    z-index: 2000;
+}
+
+.topnav {
+    z-index: var(--z-header);
+    position: sticky;
+    top: 0;
+}
+
+body.map-page footer {
+    margin-top: 0;
+}
+
+/* Geocoder control */
+.mapboxgl-ctrl-geocoder {
+    min-width: 220px;
+    max-width: 280px;
+    font-size: 14px;
+}
+
+@media (max-width: 640px) {
+    .mapboxgl-ctrl-geocoder {
+        max-width: 72vw;
+    }
+}
+
+/* Icon toolbar (Mapbox style) */
+.mapboxgl-ctrl-group.pinged-ctrl.iconbar {
+    background: rgba(255, 255, 255, .88);
+    backdrop-filter: saturate(120%) blur(4px);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, .08);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, .12);
+    padding: 6px;
+    display: grid;
+    grid-auto-flow: row;
+    gap: 6px;
+}
+
+.pinged-ctrl.iconbar .ctrl-btn {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, .15);
+    border-radius: 8px;
+    padding: 0;
+    cursor: pointer;
+}
+
+.pinged-ctrl.iconbar .ctrl-btn:hover {
+    background: rgba(0, 0, 0, .04);
+}
+
+.pinged-ctrl.iconbar .ctrl-btn.active {
+    background: #e7f8f6;
+    border-color: #00c2a8;
+    box-shadow: inset 0 0 0 1px rgba(0, 194, 168, .45);
+}
+
+.pinged-ctrl.iconbar .ctrl-btn svg {
+    fill: #333;
+}
+
+[data-theme='dark'] .pinged-ctrl.iconbar .ctrl-btn svg {
+    fill: #eee;
+}
+
+/* Tiny style menu – opens to the LEFT of the style button */
+.pinged-style-menu {
+    position: absolute;
+    right: calc(100% + 8px);
+    /* open left */
+    top: 0;
+    background: rgba(255, 255, 255, .96);
+    border: 1px solid rgba(0, 0, 0, .1);
+    border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, .18);
+    padding: 6px;
+    min-width: 140px;
+}
+
+.pinged-style-menu .style-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+}
+
+.pinged-style-menu .style-item:hover {
+    background: rgba(0, 0, 0, .05);
+}
+
+.pinged-style-menu .style-item.active {
+    background: #e7f8f6;
+    border-color: #00c2a8;
+}
+
+.pinged-style-menu .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #00c2a8;
+}
+
+/* Puck (you) */
+.me-puck {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #2b78ff;
+    box-shadow: 0 0 0 3px rgba(43, 120, 255, .35);
+    border: 2px solid #fff;
+    cursor: pointer;
+}
+
+/* Friend / Beacon marker visuals */
+.beacon-marker .beacon-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ff5a5f;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 3px rgba(255, 90, 95, .30);
+}
+
+.friend-marker .beacon-dot {
+    background: #7c4dff;
+    box-shadow: 0 0 0 3px rgba(124, 77, 255, .30);
+}
+
+/* Popup content */
+.person-pop {
+    min-width: 230px;
+}
+
+.person-pop .line {
+    margin: 4px 0;
+}
+
+.person-pop .actions {
+    margin-top: 6px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.person-pop .primary.small {
+    padding: 6px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+/* Long-press improve sheet (simple) */
+.improve-sheet h4 {
+    margin: 6px 0 10px;
+}
+
+.improve-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    text-align: center;
+}
+
+.improve-tile {
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.improve-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.btn-soft {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+}

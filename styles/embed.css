@@ -1,0 +1,28 @@
+/* =======================================================================================
+FILE: styles/embed.css  (FULL — UPDATED)
+CHANGES
+- Uses html.is-embed (set immediately by a tiny inline script) to hide navbar/footer in
+  embedded contexts; also still supports body.embed from embed-mode.js.
+- Tightened inner spacing so the stage uses space efficiently.
+======================================================================================= */
+
+/* Hide chrome while embedded */
+html.is-embed .topnav,
+html.is-embed footer,
+body.embed .topnav,
+body.embed footer { display:none !important; }
+
+/* Content area inside iframes */
+html.is-embed main.content,
+body.embed main.content{
+  max-width: 1100px;
+  padding: 16px;
+  margin: 0 auto;
+}
+
+/* Forms get tighter margins in embed mode (so less wasted space) */
+html.is-embed form,
+body.embed form{ margin: 16px auto; }
+
+/* Ensure embedded pages can stretch to compute height correctly */
+html.is-embed, body.embed { height: auto; min-height: 0; }

@@ -1,0 +1,78 @@
+<!-- =======================================================================================
+FILE: dashboard.html  (FULL — FIXED)
+CHANGES
+- Removed the extra "Feed" title above the stage (per your point #2).
+- Stage iframe loads content with ?embed=1 so inner nav/footer are hidden.
+- Stage width increased to use more screen space; animation handled by dashboard.css.
+- No other structural changes.
+======================================================================================= -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard – Pinged</title>
+
+  <!-- Global + page styles -->
+  <link rel="stylesheet" href="styles/style.css" />
+  <link rel="stylesheet" href="styles/dashboard.css" />
+  <link rel="stylesheet" href="styles/embed.css" />
+  <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
+</head>
+
+<body>
+  <!-- Top navigation -->
+  <header class="topnav">
+    <a href="index.html" class="nav-left home-link" style="text-decoration:none;">
+      <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
+      <span class="app-name">Pinged</span>
+    </a>
+    <nav class="nav-right">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="feed.html">Feed</a>
+      <a href="map.html">Map</a>
+      <button id="themeToggle" class="theme-toggle" type="button">🌓</button>
+    </nav>
+  </header>
+
+  <!-- Stage only (no separate title heading) -->
+  <main class="content">
+    <section id="stage" class="stage mode-feed" aria-live="polite">
+      <iframe id="stage-frame" class="stage-frame" src="feed.html?embed=1" title="Feed" loading="eager">
+      </iframe>
+    </section>
+
+    <!-- Dock (secondary options) -->
+    <section class="dock" aria-label="Quick actions">
+      <div class="card" data-view="map" role="button" tabindex="0" aria-label="Open Map">
+        <h3>🗺️ Map</h3>
+        <p>Location &amp; layers</p>
+      </div>
+      <div class="card" data-view="settings" role="button" tabindex="0" aria-label="Open Settings">
+        <h3>⚙️ Settings</h3>
+        <p>Profile &amp; privacy</p>
+      </div>
+      <div class="card" data-view="friends" role="button" tabindex="0" aria-label="Open Friends">
+        <h3>👥 Friends</h3>
+        <p>Social activity</p>
+      </div>
+      <div class="card" data-view="feed" role="button" tabindex="0" aria-label="Open Feed">
+        <h3>💬 Chat / Feed</h3>
+        <p>Messaging &amp; posts</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Pinged. All rights reserved.</p>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="./scripts/ui.js?v=10"></script>
+  <script defer src="./scripts/dashboard.js?v=5"></script>
+  <script defer src="./scripts/theme-toggle.js?v=2"></script>
+</body>
+
+</html>

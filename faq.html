@@ -1,52 +1,51 @@
+<!-- =======================================================================
+     FILE: faq.html
+     PURPOSE:
+       - Public FAQ with shared nav that prunes on auth via ui.js.
+     ======================================================================= -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FAQs – Pinged</title>
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
-  <script defer src="scripts/theme-toggle.js"></script>
 </head>
-
 <body>
   <header class="topnav">
-    <a href="index.html" class="nav-left" style="text-decoration: none;">
+    <a href="index.html" class="nav-left" style="text-decoration:none;">
       <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
-
     <nav class="nav-right">
-      <a href="index.html">Home</a>
-      <a href="faq.html">FAQs</a>
-      <a href="privacy.html">Privacy</a>
-      <a href="terms.html">Terms</a>
-      <a href="support.html">Support</a>
-      <button id="themeToggle" class="theme-toggle">🌓</button>
+      <a href="index.html"   data-auth="guest">Home</a>
+      <a href="faq.html"     data-auth="guest">FAQs</a>
+      <a href="privacy.html" data-auth="guest">Privacy</a>
+      <a href="terms.html"   data-auth="guest">Terms</a>
+      <a href="support.html" data-auth="guest">Support</a>
+      <a href="dashboard.html" data-auth="authed">Dashboard</a>
+      <a href="feed.html"      data-auth="authed">Feed</a>
+      <a href="map.html"       data-auth="authed">Map</a>
+      <button id="themeToggle" class="theme-toggle" type="button">🌓</button>
     </nav>
   </header>
 
   <main class="content">
     <section>
-      <h2>❓ How does Pinged work?</h2>
-      <p>Pinged uses GPS, maps, and AR overlays to guide you to your friends in real-time.</p>
-
-      <h2>👀 Can I hide my location?</h2>
-      <p>Yes. You can toggle your visibility anytime from the app’s Settings screen.</p>
-
-      <h2>🔐 Is my data private?</h2>
-      <p>Yes. Your messages and location data are encrypted. We never share or sell your information.</p>
-
-      <h2>📱 When is the app launching?</h2>
-      <p>Pinged will launch on Android in 2025. iOS support is planned for a future release.</p>
+      <h2>How does Pinged work?</h2>
+      <p>Sign in, post updates to your feed, and view your friends on the map (with their consent).</p>
+    </section>
+    <section>
+      <h2>Is my location private?</h2>
+      <p>Only approved friends can see your location. Control this in Settings.</p>
     </section>
   </main>
 
- 
-  <footer>
-    <p>&copy; 2025 Pinged. All rights reserved.</p>
-  </footer>
-</body>
+  <footer><p>&copy; 2025 Pinged. All rights reserved.</p></footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="./scripts/ui.js?v=11"></script>
+  <script defer src="./scripts/theme-toggle.js?v=2"></script>
+</body>
 </html>

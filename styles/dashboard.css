@@ -1,0 +1,90 @@
+/* =======================================================================================
+FILE: styles/dashboard.css  (FULL — UPDATED)
+CHANGES
+- Stage widened to use more of the screen (min(1200px, 92vw)).
+- Removed top title spacing; tightened vertical rhythm.
+- Map mode uses aspect-ratio to avoid inner scrollbars.
+- Simple slide animation when switching views.
+======================================================================================= */
+
+.stage {
+    width: min(1200px, 92vw);
+    margin: 12px auto 20px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--card-bg);
+    box-shadow: 0 6px 30px rgba(0, 0, 0, .08);
+    overflow: hidden;
+    transition: transform .35s ease, box-shadow .35s ease;
+}
+
+.stage-frame {
+    display: block;
+    width: 100%;
+    border: 0;
+    /* height is set dynamically for feed via postMessage; map uses .mode-map below */
+}
+
+/* Map sizing: let the container own the height via aspect ratio */
+.stage.mode-map {
+    aspect-ratio: 16 / 9;
+    min-height: 460px;
+}
+
+.stage.mode-map .stage-frame {
+    height: 100%;
+}
+
+/* Slide-in hint when switching */
+.stage.mode-feed {
+    animation: dashSlideIn .35s ease;
+}
+
+.stage.mode-map {
+    animation: dashSlideIn .35s ease;
+}
+
+@keyframes dashSlideIn {
+    from {
+        transform: translateY(8px);
+        opacity: .96;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Dock */
+.dock {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(190px, 1fr));
+    gap: 16px;
+    width: min(1200px, 92vw);
+    margin: 6px auto 0;
+}
+
+.dock .card {
+    cursor: pointer;
+    user-select: none;
+    text-align: left;
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.dock .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, .08);
+}
+
+@media (max-width: 860px) {
+    .dock {
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+    }
+}
+
+@media (max-width: 520px) {
+    .dock {
+        grid-template-columns: 1fr;
+    }
+}
