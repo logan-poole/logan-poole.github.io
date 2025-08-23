@@ -1,10 +1,10 @@
-<!-- =======================================================================
-     FILE: support.html
-     PURPOSE:
-       - Public Support page; nav toggles via ui.js.
-     ======================================================================= -->
+<!-- support.html
+     - Public-only page (redirects to dashboard if logged in)
+     - Added Supabase + config + auth-guard
+-->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -12,34 +12,99 @@
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
 </head>
-<body>
+
+<body data-public-only="true">
   <header class="topnav">
     <a href="index.html" class="nav-left" style="text-decoration:none;">
       <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <a href="index.html"   data-auth="guest">Home</a>
-      <a href="faq.html"     data-auth="guest">FAQs</a>
-      <a href="privacy.html" data-auth="guest">Privacy</a>
-      <a href="terms.html"   data-auth="guest">Terms</a>
-      <a href="support.html" data-auth="guest">Support</a>
-      <a href="dashboard.html" data-auth="authed">Dashboard</a>
-      <a href="feed.html"      data-auth="authed">Feed</a>
-      <a href="map.html"       data-auth="authed">Map</a>
+      <a href="index.html" data-auth="public">Home</a>
+      <a href="faq.html" data-auth="public">FAQs</a>
+      <a href="privacy.html" data-auth="public">Privacy</a>
+      <a href="terms.html" data-auth="public">Terms</a>
+      <a href="support.html" data-auth="public" class="active">Support</a>
+      <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
+      <a href="feed.html" data-auth="protected" hidden>Feed</a>
+      <a href="map.html" data-auth="protected" hidden>Map</a>
       <button id="themeToggle" class="theme-toggle" type="button">🌓</button>
     </nav>
   </header>
 
-  <main class="content">
-    <h2>Support</h2>
-    <p>Reach me at support@example.com</p>
+  <main class="content" style="max-width:1000px;margin:0 auto;">
+    <h1>Support</h1>
+    <p class="muted">We’re here to help with setup, login, and features.</p>
+
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px">
+      <section class="card">
+        <h2>Contact</h2>
+        <p>Email us at <a href="mailto:support@pinged.nz">support@pinged.nz</a>. We aim to reply within 1–2 business
+          days.</p>
+        <p class="muted">Include your device model, Android version, and a brief description of the issue.</p>
+      </section>
+
+      <section class="card">
+        <h2>Quick Fixes</h2>
+        <ul>
+          <li><strong>Can’t log in?</strong> Check email/password and your internet connection.</li>
+          <li><strong>Map not loading?</strong> Ensure location permissions are granted; toggle GPS on/off.</li>
+          <li><strong>AR feels jittery?</strong> Calibrate the compass; try moving to open space.</li>
+          <li><strong>Battery drain?</strong> Close AR when not navigating; set visibility to off.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Send a Request</h2>
+        <form class="form" id="support-form">
+          <div>
+            <label for="name">Name</label>
+            <input id="name" required />
+          </div>
+          <div>
+            <label for="email">Email</label>
+            <input id="email" type="email" required />
+          </div>
+          <div>
+            <label for="topic">Topic</label>
+            <input id="topic" placeholder="Login / Map / AR / Other" required />
+          </div>
+          <div>
+            <label for="message">Message</label>
+            <textarea id="message" rows="5" required></textarea>
+          </div>
+          <button class="primary" type="submit">Send</button>
+          <div id="sent" class="notice ok" style="display:none;margin-top:8px;">Thank you — your email app should open
+            now.</div>
+        </form>
+      </section>
+    </div>
   </main>
 
-  <footer><p>&copy; 2025 Pinged. All rights reserved.</p></footer>
+  <footer>
+    <p>&copy; 2025 Pinged. All rights reserved.</p>
+  </footer>
 
+  <!-- Scripts (Order matters) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/auth-guard.js"></script>
+
   <script defer src="./scripts/ui.js?v=11"></script>
   <script defer src="./scripts/theme-toggle.js?v=2"></script>
+  <script>
+    // Simple mailto-based submission (static hosting friendly)
+    document.getElementById("support-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = encodeURIComponent(document.getElementById("name").value.trim());
+      const from = encodeURIComponent(document.getElementById("email").value.trim());
+      const topic = encodeURIComponent(document.getElementById("topic").value.trim());
+      const msg = encodeURIComponent(document.getElementById("message").value.trim());
+      const mail = `mailto:support@pinged.nz?subject=Pinged%20Support%20—%20${topic}&body=From:%20${name}%20%3C${from}%3E%0A%0A${msg}`;
+      window.location.href = mail;
+      document.getElementById("sent").style.display = "block";
+    });
+  </script>
 </body>
+
 </html>

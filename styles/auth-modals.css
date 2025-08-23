@@ -1,0 +1,226 @@
+/* ====== Backdrop ====== */
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  /* becomes flex when opened via JS */
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(6, 16, 20, 0.55);
+  backdrop-filter: blur(6px) saturate(110%);
+  z-index: 9999;
+}
+
+.auth-overlay[aria-hidden="false"] {
+  display: flex;
+}
+
+/* ====== Modal ====== */
+.auth-modal {
+  width: min(720px, 92vw);
+  background: var(--card-bg, #fff);
+  color: var(--fg, #111);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 18px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  transform: translateY(8px) scale(.98);
+  opacity: 0;
+  transition: transform .22s ease, opacity .22s ease;
+}
+
+.auth-overlay[aria-hidden="false"] .auth-modal:not([hidden]) {
+  transform: none;
+  opacity: 1;
+}
+
+/* Header */
+.auth-modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  background: linear-gradient(180deg, rgba(0, 194, 168, .12), transparent);
+}
+
+.auth-modal header h3 {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: .2px;
+}
+
+.auth-close {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.auth-close:hover {
+  background: rgba(0, 0, 0, .06);
+}
+
+/* Body / form */
+.auth-modal form {
+  padding: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.auth-sub {
+  margin: 0 0 6px;
+  color: var(--muted, #6b7280);
+  font-size: .95rem;
+}
+
+.auth-modal label {
+  font-weight: 600;
+  font-size: .94rem;
+  color: var(--muted-strong, #2f353d);
+  margin-top: 2px;
+}
+
+.auth-modal input[type="email"],
+.auth-modal input[type="password"] {
+  width: 100%;
+  height: 46px;
+  border-radius: 12px;
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--bg, #fff);
+  padding: 0 14px;
+  font-size: 15px;
+  outline: none;
+}
+
+.auth-modal input:focus {
+  border-color: #00c2a8;
+  box-shadow: 0 0 0 4px rgba(0, 194, 168, .15);
+}
+
+/* Password eye toggle */
+.input-wrap {
+  position: relative;
+}
+
+.pw-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.pw-toggle:hover {
+  background: rgba(0, 0, 0, .06);
+}
+
+.pw-toggle svg {
+  fill: currentColor;
+  color: #475569;
+}
+
+/* Error + hint */
+.auth-error {
+  display: none;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #fda29b;
+  background: #fee4e2;
+  color: #b42318;
+  font-size: .95rem;
+}
+
+.auth-error.show {
+  display: block;
+}
+
+.auth-hint {
+  margin: 2px 0 0;
+  color: var(--muted, #6b7280);
+}
+
+/* Buttons */
+.auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.btn,
+.primary {
+  border-radius: 12px;
+  height: 42px;
+  padding: 0 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border, #d1d5db);
+  background: #fff;
+}
+
+.btn:hover {
+  background: rgba(0, 0, 0, .04);
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+.primary {
+  background: #00c2a8;
+  border-color: #00b39b;
+  color: #fff;
+}
+
+.primary:hover {
+  filter: brightness(.98);
+}
+
+.primary:disabled,
+.btn:disabled {
+  opacity: .6;
+  cursor: default;
+}
+
+@media (max-width: 520px) {
+  .auth-modal {
+    width: 100%;
+    max-height: 92vh;
+  }
+
+  .auth-modal form {
+    padding: 14px;
+  }
+}
+
+/* Dark mode */
+html[data-theme="dark"] .auth-modal {
+  background: #111418;
+  border-color: #2b2f36;
+  color: #e7e9ee;
+}
+
+html[data-theme="dark"] .auth-modal header {
+  border-color: #2b2f36;
+  background: linear-gradient(180deg, rgba(0, 194, 168, .08), transparent);
+}
+
+html[data-theme="dark"] .auth-modal input {
+  background: #161a20;
+  border-color: #2b2f36;
+  color: #e8e8ea;
+}
+
+html[data-theme="dark"] .pw-toggle:hover {
+  background: rgba(255, 255, 255, .06);
+}

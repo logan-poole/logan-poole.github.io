@@ -1,0 +1,115 @@
+<!-- =============================================================================
+FILE: settings.html  (COMPLETE)
+PURPOSE
+- Private settings page for profile updates (username, display name, website, bio, visibility).
+- Uses Supabase directly, matching the logic from your prior modal.
+- Protected via data-require-auth="true".
+============================================================================= -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pinged — Settings</title>
+  <link rel="stylesheet" href="styles/style.css" />
+  <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
+</head>
+<body data-require-auth="true">
+  <header class="topnav">
+    <a href="dashboard.html" class="nav-left" style="text-decoration:none;">
+      <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
+      <span class="app-name">Pinged</span>
+    </a>
+    <nav class="nav-right">
+      <a href="index.html"  data-auth="public">Home</a>
+      <a href="faq.html"    data-auth="public">FAQs</a>
+      <a href="privacy.html"data-auth="public">Privacy</a>
+      <a href="terms.html"  data-auth="public">Terms</a>
+      <a href="support.html"data-auth="public">Support</a>
+      <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
+      <a href="feed.html"      data-auth="protected" hidden>Feed</a>
+      <a href="map.html"       data-auth="protected" hidden>Map</a>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
+    </nav>
+  </header>
+
+  <main class="content container">
+    <p><a href="dashboard.html">← Back to Dashboard</a></p>
+    <h1 class="page-title">Settings</h1>
+
+    <section class="card" id="settings-card">
+      <div class="form-grid">
+        <div><label>Username</label><input id="username" type="text"></div>
+        <div><label>Display name</label><input id="display_name" type="text"></div>
+        <div><label>Website</label><input id="website" type="text" placeholder="https://example.com"></div>
+        <div>
+          <label>Visibility</label>
+          <select id="visibility">
+            <option value="public">public</option>
+            <option value="friends">friends</option>
+            <option value="private">private</option>
+          </select>
+        </div>
+        <div style="grid-column:1 / -1">
+          <label>Bio</label><textarea id="bio" placeholder="A short bio…"></textarea>
+        </div>
+      </div>
+      <div class="btns" style="margin-top:10px;">
+        <button id="save-btn" class="primary">Save</button>
+      </div>
+    </section>
+  </main>
+
+  <footer><p>&copy; 2025 Pinged. All rights reserved.</p></footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/auth-guard.js"></script>
+  <script src="scripts/ui.js" defer></script>
+  <script src="scripts/theme-toggle.js" defer></script>
+  <script>
+    // Load/save profile similar to the modal version
+    const sb = window.__sb;
+    const $ = (id)=>document.getElementById(id);
+
+    async function loadProfile(){
+      const { data:{ user } } = await sb.auth.getUser();
+      if (!user) return;
+      const meta = user.user_metadata || {};
+      // try db
+      let profile = null;
+      try{
+        const { data, error } = await sb.from('users')
+          .select('id,username,display_name,profile_pic,visibility,website,bio')
+          .eq('id', user.id).maybeSingle();
+        if(!error && data) profile = data;
+      }catch{}
+
+      $('username').value      = profile?.username      ?? (meta.username||'');
+      $('display_name').value  = profile?.display_name  ?? (meta.display_name||'');
+      $('website').value       = profile?.website       ?? (meta.website||'');
+      $('bio').value           = profile?.bio           ?? (meta.bio||'');
+      $('visibility').value    = profile?.visibility    ?? (meta.visibility||'friends');
+    }
+
+    async function saveProfile(){
+      const { data:{ user } } = await sb.auth.getUser();
+      if (!user) return alert('Not signed in');
+      const payload = {
+        id: user.id,
+        username: $('username').value.trim() || null,
+        display_name: $('display_name').value.trim() || null,
+        website: $('website').value.trim() || null,
+        bio: $('bio').value.trim() || null,
+        visibility: $('visibility').value || 'friends'
+      };
+      try { await sb.from('users').upsert(payload, { onConflict:'id' }); } catch {}
+      await sb.auth.updateUser({ data: payload });
+      window.pingedUI?.showToast?.('Saved');
+    }
+
+    document.addEventListener('DOMContentLoaded', loadProfile);
+    document.getElementById('save-btn').addEventListener('click', saveProfile);
+  </script>
+</body>
+</html>

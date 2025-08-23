@@ -1,34 +1,57 @@
 /* =======================================================================================
-   styles/map.css — Map page (Mapbox GL, feed-style layout)
-   - Map fills viewport minus topnav + footer
-   - Embed mode (?embed=1 or iframe) → full height
-   - Subtle in-map icon toolbar, left-opening style menu
-   - Geocoder search control sizing
-   - Puck, friend, and beacon marker styles + popup
+FILE: styles/map.css  (COMPLETE, UPDATED)
+ADDED
+- html.is-embed rules to hide header/footer inside embedded map windows.
+- Keeps previous improvements you already applied.
 ======================================================================================= */
 
-/* --- Main map container sizing --- */
+/* --- Page layout & centering --- */
 body.map-page main.content {
-    max-width: none;
-    width: 100%;
+    width: min(1100px, 100%);
+    margin: 24px auto;
     padding: 0 !important;
-    /* full-bleed map */
 }
 
+/* Safety: if a second nav ever gets injected into the content area, hide it */
+body.map-page main.content .topnav {
+    display: none !important;
+}
+
+/* EMBED mode: hide chrome fully */
+html.is-embed .topnav,
+html.is-embed footer {
+    display: none !important;
+}
+
+/* --- Main map container sizing --- */
 body.map-page #map {
     position: relative;
     width: 100%;
-    min-height: calc(100vh - 140px);
-    /* adjust if topnav/footer change */
+    min-height: calc(80vh - 80px);
+    margin-inline: auto;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
 }
 
+/* optional status badge above the map */
+#map-status {
+    margin: 12px 0;
+}
+
+/* Embeds */
 html.is-embed body.map-page #map {
     min-height: 100vh !important;
 }
 
-/* Mapbox control layering */
+/* Ensure map UI sits above basemap but below app dropdowns */
 .mapboxgl-control-container {
     z-index: 2000;
+}
+
+.dropdown {
+    z-index: var(--z-dropdown);
 }
 
 .topnav {
@@ -48,7 +71,7 @@ body.map-page footer {
     font-size: 14px;
 }
 
-@media (max-width: 640px) {
+@media (max-width:640px) {
     .mapboxgl-ctrl-geocoder {
         max-width: 72vw;
     }
@@ -98,49 +121,85 @@ body.map-page footer {
     fill: #eee;
 }
 
-/* Tiny style menu – opens to the LEFT of the style button */
-.pinged-style-menu {
+/* Flyout menu appended to <body> */
+.pinged-style-menu-flyout {
     position: absolute;
-    right: calc(100% + 8px);
-    /* open left */
-    top: 0;
-    background: rgba(255, 255, 255, .96);
-    border: 1px solid rgba(0, 0, 0, .1);
-    border-radius: 10px;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, .18);
-    padding: 6px;
-    min-width: 140px;
+    z-index: 1000;
+    min-width: 220px;
+    max-width: 260px;
+    padding: 8px;
+    background: #fff;
+    color: #111;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
 }
 
-.pinged-style-menu .style-item {
+html[data-theme="dark"] .pinged-style-menu-flyout {
+    background: #1f2125;
+    color: #e6e6e6;
+    border-color: #2b2d31;
+}
+
+.pinged-style-menu-flyout .style-item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 10px;
     background: transparent;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    padding: 6px 8px;
     cursor: pointer;
+    text-align: left;
+    font: 500 14px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans";
+    white-space: nowrap;
 }
 
-.pinged-style-menu .style-item:hover {
-    background: rgba(0, 0, 0, .05);
+.pinged-style-menu-flyout .style-item:hover {
+    background: rgba(0, 0, 0, .06);
 }
 
-.pinged-style-menu .style-item.active {
-    background: #e7f8f6;
-    border-color: #00c2a8;
+html[data-theme="dark"] .pinged-style-menu-flyout .style-item:hover {
+    background: rgba(255, 255, 255, .08);
 }
 
-.pinged-style-menu .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 999px;
-    background: #00c2a8;
+.pinged-style-menu-flyout .style-item.active {
+    outline: 2px solid rgba(0, 0, 0, .15);
 }
 
-/* Puck (you) */
+html[data-theme="dark"] .pinged-style-menu-flyout .style-item.active {
+    outline: 2px solid rgba(255, 255, 255, .2);
+}
+
+.pinged-style-menu-flyout .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.pinged-style-menu-flyout .style-item:nth-child(1) .dot {
+    background: #3b82f6
+}
+
+.pinged-style-menu-flyout .style-item:nth-child(2) .dot {
+    background: #10b981
+}
+
+.pinged-style-menu-flyout .style-item:nth-child(3) .dot {
+    background: #d1d5db
+}
+
+.pinged-style-menu-flyout .style-item:nth-child(4) .dot {
+    background: #111827
+}
+
+.pinged-style-menu-flyout .style-item:nth-child(5) .dot {
+    background: #f59e0b
+}
+
+/* Puck & markers */
 .me-puck {
     width: 16px;
     height: 16px;
@@ -151,44 +210,31 @@ body.map-page footer {
     cursor: pointer;
 }
 
-/* Friend / Beacon marker visuals */
-.beacon-marker .beacon-dot {
+.dest-marker {
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: #ff5a5f;
-    border: 2px solid #fff;
-    box-shadow: 0 0 0 3px rgba(255, 90, 95, .30);
-}
-
-.friend-marker .beacon-dot {
-    background: #7c4dff;
-    box-shadow: 0 0 0 3px rgba(124, 77, 255, .30);
+    background: #ef4444;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, .25);
 }
 
 /* Popup content */
-.person-pop {
-    min-width: 230px;
+.mini-card .title {
+    font-weight: 600;
+    margin-bottom: 2px;
 }
 
-.person-pop .line {
-    margin: 4px 0;
-}
-
-.person-pop .actions {
-    margin-top: 6px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-}
-
-.person-pop .primary.small {
-    padding: 6px 10px;
-    border-radius: 10px;
+.mini-card .subtle {
+    color: #6b7280;
     font-size: 12px;
 }
 
-/* Long-press improve sheet (simple) */
+html[data-theme='dark'] .mini-card .subtle {
+    color: #9ca3af;
+}
+
+/* Long-press dialog (placeholder styles) */
 .improve-sheet h4 {
     margin: 6px 0 10px;
 }

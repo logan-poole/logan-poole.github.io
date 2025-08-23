@@ -1,17 +1,7 @@
 /* =======================================================================================
-FILE: styles/style.css  (GLOBAL — CLEAN REVISION, FULL)
-WHAT'S HERE
-- Theme tokens (light/dark), elevation (z-index), spacing/radius.
-- Base typography + utilities (.hidden, .muted, etc.).
-- Top nav, profile menu, dropdown (raised above Leaflet via z-index).
-- Global form, button, card, toast, modal, legal/support blocks.
-- Mobile + reduced-motion media queries.
-
-NOTE
-- Page-specific styles live in their own files (e.g., styles/dashboard.css, styles/map.css).
+styles/style.css
 ======================================================================================= */
 
-/* ============ Root Theme Variables ============ */
 :root {
   /* Brand */
   --accent: #00C2A8;
@@ -111,7 +101,7 @@ ul li {
   margin-bottom: 10px
 }
 
-/* ============ Utilities ============ */
+/* ============ Utilities (visibility rules tightened) ============ */
 .muted {
   color: var(--sub);
   font-size: .9rem
@@ -129,6 +119,12 @@ ul li {
 .hidden {
   display: none !important
 }
+
+[hidden] {
+  display: none !important
+}
+
+/* NEW: attribute-based hiding is enforced */
 
 .container {
   max-width: 980px;
@@ -150,7 +146,7 @@ ul li {
   width: 1px;
   overflow: hidden;
   clip: rect(1px, 1px, 1px, 1px);
-  white-space: nowrap
+  white-space: nowrap;
 }
 
 /* ============ Navigation ============ */
@@ -191,7 +187,7 @@ ul li {
   height: 60px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity .3s
+  transition: opacity .3s;
 }
 
 .home-link:hover .ping-effect-gif {
@@ -203,7 +199,7 @@ ul li {
   font-weight: 700;
   color: #fff;
   animation: ping-effect 2.8s infinite ease-in-out;
-  transition: transform .3s, text-shadow .3s
+  transition: transform .3s, text-shadow .3s;
 }
 
 [data-theme='dark'] .app-name {
@@ -231,7 +227,13 @@ ul li {
   border-radius: 20px;
   padding: 6px 12px;
   font-weight: 700;
-  cursor: pointer
+  cursor: pointer;
+}
+
+/* IMPORTANT: prevent initial "flash" of protected links while logged out */
+.nav-right [data-auth="protected"],
+.nav-right [data-auth="authed"] {
+  display: none;
 }
 
 /* Profile + dropdown */
@@ -248,7 +250,7 @@ ul li {
   max-width: 180px;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis
+  text-overflow: ellipsis;
 }
 
 [data-theme='dark'] .nav-name {
@@ -264,7 +266,7 @@ ul li {
   border-radius: 999px;
   padding: 2px;
   cursor: pointer;
-  box-shadow: 0 0 0 3px var(--menu-outline-soft)
+  box-shadow: 0 0 0 3px var(--menu-outline-soft);
 }
 
 .avatar-btn:hover {
@@ -638,7 +640,7 @@ button:focus-visible {
   padding: 20px;
   background: var(--card-bg);
   box-shadow: 0 1px 0 rgba(0, 0, 0, .02);
-  margin: 16px 0
+  margin: 16px 0;
 }
 
 .avatar-wrap {
@@ -704,7 +706,7 @@ button:focus-visible {
   padding: 40px 20px;
   border-top: 1px solid #ccc;
   margin-top: 40px;
-  animation: fadeInUp .6s ease-in-out
+  animation: fadeInUp .6s ease-in-out;
 }
 
 .legal-support h3 {
@@ -758,7 +760,7 @@ button:focus-visible {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  z-index: var(--z-modal)
+  z-index: var(--z-modal);
 }
 
 .modal-backdrop.hidden {
@@ -773,7 +775,7 @@ button:focus-visible {
   color: #111;
   border: 2px solid var(--menu-outline);
   border-radius: 16px;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, .3)
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .3);
 }
 
 [data-theme='dark'] .modal {
@@ -788,7 +790,7 @@ button:focus-visible {
   gap: 8px;
   padding: 14px 18px;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(0, 194, 168, .10), transparent)
+  background: linear-gradient(180deg, rgba(0, 194, 168, .10), transparent);
 }
 
 .modal-title {

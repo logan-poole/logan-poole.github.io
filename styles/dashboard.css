@@ -1,90 +1,129 @@
 /* =======================================================================================
-FILE: styles/dashboard.css  (FULL — UPDATED)
-CHANGES
-- Stage widened to use more of the screen (min(1200px, 92vw)).
-- Removed top title spacing; tightened vertical rhythm.
-- Map mode uses aspect-ratio to avoid inner scrollbars.
-- Simple slide animation when switching views.
+styles/dashboard.css
 ======================================================================================= */
 
-.stage {
-    width: min(1200px, 92vw);
-    margin: 12px auto 20px;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    background: var(--card-bg);
-    box-shadow: 0 6px 30px rgba(0, 0, 0, .08);
-    overflow: hidden;
-    transition: transform .35s ease, box-shadow .35s ease;
+:root {
+    --dash-w: min(1280px, 96vw);
 }
 
-.stage-frame {
-    display: block;
-    width: 100%;
-    border: 0;
-    /* height is set dynamically for feed via postMessage; map uses .mode-map below */
+body.dashboard-page main.content {
+    padding: 20px 0 48px;
+    max-width: none;
 }
 
-/* Map sizing: let the container own the height via aspect ratio */
-.stage.mode-map {
-    aspect-ratio: 16 / 9;
-    min-height: 460px;
+/* Inner width container */
+.dash-inner {
+    width: var(--dash-w);
+    margin: 0 auto;
 }
 
-.stage.mode-map .stage-frame {
-    height: 100%;
+/* Heading */
+.dash-head {
+    text-align: center;
+    margin: 10px 0 22px;
 }
 
-/* Slide-in hint when switching */
-.stage.mode-feed {
-    animation: dashSlideIn .35s ease;
+.dash-head h1 {
+    margin: 0 0 6px;
 }
 
-.stage.mode-map {
-    animation: dashSlideIn .35s ease;
+.dash-head .muted {
+    margin: 0;
 }
 
-@keyframes dashSlideIn {
-    from {
-        transform: translateY(8px);
-        opacity: .96;
-    }
-
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-/* Dock */
-.dock {
+/* ===== Grid: 3 columns desktop, 2 on md, 1 on small ===== */
+.tiles {
     display: grid;
-    grid-template-columns: repeat(4, minmax(190px, 1fr));
-    gap: 16px;
-    width: min(1200px, 92vw);
-    margin: 6px auto 0;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 26px;
+    width: 100%;
 }
 
-.dock .card {
-    cursor: pointer;
-    user-select: none;
-    text-align: left;
-    transition: transform .18s ease, box-shadow .18s ease;
-}
-
-.dock .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 26px rgba(0, 0, 0, .08);
-}
-
-@media (max-width: 860px) {
-    .dock {
-        grid-template-columns: repeat(2, minmax(180px, 1fr));
+@media (max-width: 1100px) {
+    .tiles {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
-@media (max-width: 520px) {
-    .dock {
+@media (max-width: 640px) {
+    .tiles {
         grid-template-columns: 1fr;
+        gap: 16px;
+    }
+}
+
+/* ===== Tile card ===== */
+.tile {
+    display: block;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    text-align: center;
+    text-decoration: none;
+    color: var(--text);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .07);
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background-color .16s ease;
+    outline: none;
+    min-height: 200px;
+}
+
+.tile:hover {
+    transform: translateY(-2px);
+    border-color: rgba(0, 194, 168, .55);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, .11);
+    text-decoration: none;
+}
+
+.tile:active {
+    transform: translateY(0);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, .09);
+}
+
+.tile:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+    border-color: var(--accent);
+}
+
+/* ===== GIF-friendly icon sizing ===== */
+.icon {
+    margin-bottom: 10px;
+}
+
+.icon-img {
+    width: clamp(64px, 8vw, 96px);
+    height: clamp(64px, 8vw, 96px);
+    object-fit: contain;
+    display: inline-block;
+    border-radius: 10px;
+    /* soften square posters; remove if undesired */
+}
+
+/* Titles & descriptions */
+.tile h3 {
+    margin: 6px 0 8px;
+    font-size: 20px;
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.tile p {
+    margin: 0;
+    color: var(--sub);
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .tile {
+        transition: border-color .16s ease, background-color .16s ease;
+    }
+
+    .tile:hover,
+    .tile:active {
+        transform: none;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, .07);
     }
 }

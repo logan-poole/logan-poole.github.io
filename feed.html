@@ -1,75 +1,92 @@
-<!-- =======================================================================================
-FILE: feed.html  (FULL — EMBED-AWARE; HIDES NAV/FOOTER WHEN EMBEDDED)
-CHANGES
-- Early inline helper marks <html> with .is-embed when ?embed=1 or inside an iframe so the
-  navbar/footer are hidden immediately (prevents the flicker you saw).
-- Everything else is your feed page. The "Your feed" heading remains.
-======================================================================================= -->
+<!-- =============================================================================
+FILE: feed.html  (COMPLETE)
+PURPOSE
+- Private feed page reachable from the dashboard tile.
+- Protected via data-require-auth="true".
+============================================================================= -->
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Feed – Pinged</title>
-
-  <!-- Mark embed mode ASAP (before CSS/HTML render) -->
-  <script>
-    (function () {
-      var qp = new URLSearchParams(location.search);
-      if (window.self !== window.top || qp.get('embed') === '1') {
-        document.documentElement.classList.add('is-embed');
-      }
-    })();
-  </script>
-
-  <!-- Styles -->
+  <title>Pinged — Feed</title>
   <link rel="stylesheet" href="styles/style.css" />
-  <link rel="stylesheet" href="styles/embed.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
-
-  <!-- Post height to parent (keeps dashboard stage sized to content) -->
-  <script src="./scripts/embed-mode.js?v=2" defer></script>
 </head>
 
-<body>
+<body data-require-auth="true">
   <header class="topnav">
-    <a href="index.html" class="nav-left" style="text-decoration:none;">
+    <a href="dashboard.html" class="nav-left" style="text-decoration:none;">
       <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <a href="dashboard.html">Dashboard</a>
-      <a href="feed.html">Feed</a>
-      <a href="map.html">Map</a>
-      <button id="themeToggle" class="theme-toggle" type="button">🌓</button>
+      <!-- Public -->
+      <a href="index.html" data-auth="public">Home</a>
+      <a href="faq.html" data-auth="public">FAQs</a>
+      <a href="privacy.html" data-auth="public">Privacy</a>
+      <a href="terms.html" data-auth="public">Terms</a>
+      <a href="support.html" data-auth="public">Support</a>
+      <!-- Protected -->
+      <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
+      <a href="feed.html" data-auth="protected" hidden>Feed</a>
+      <a href="map.html" data-auth="protected" hidden>Map</a>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
     </nav>
   </header>
 
-  <main class="content">
-    <h2>Your feed</h2>
+  <main class="content container">
+    <p><a href="dashboard.html">← Back to Dashboard</a></p>
+    <h1 class="page-title">Feed</h1>
 
-    <!-- Composer -->
-    <form id="composer" class="card" style="max-width:680px;">
-      <label for="content">Post something</label>
-      <textarea id="content" name="content" placeholder="What's up?" required></textarea>
-      <button class="primary" type="submit">Post</button>
-    </form>
-
-    <!-- Loading / empty / not-signed-in messages are managed by scripts -->
-    <div id="feed-empty" class="muted">Loading your feed…</div>
-    <div id="feed-list"></div>
+    <section class="card">
+      <form id="post-form">
+        <label for="post-text">Share an update</label>
+        <textarea id="post-text" placeholder="What's happening?" rows="3"></textarea>
+        <button class="primary" type="submit">Post</button>
+      </form>
+      <div id="feed-list" class="stack"></div>
+    </section>
   </main>
 
   <footer>
     <p>&copy; 2025 Pinged. All rights reserved.</p>
   </footer>
 
-  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script defer src="./scripts/ui.js?v=10"></script>
-  <script defer src="./scripts/feed.js?v=6"></script>
-  <script defer src="./scripts/theme-toggle.js?v=2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/auth-guard.js"></script>
+  <script src="scripts/ui.js" defer></script>
+  <script src="scripts/theme-toggle.js" defer></script>
+  <script>
+    // Minimal placeholder feed (local only)
+    const KEY = 'pinged_demo_feed_v1';
+    const $ = (s, r = document) => r.querySelector(s);
+    const list = $('#feed-list'), form = $('#post-form'), ta = $('#post-text');
+    function load() { try { return JSON.parse(localStorage.getItem(KEY) || '[]') } catch { return [] } }
+    function save(x) { try { localStorage.setItem(KEY, JSON.stringify(x)) } catch { } }
+    function render() {
+      list.innerHTML = '';
+      const f = load().reverse();
+      if (!f.length) { list.innerHTML = '<p class="muted">No posts yet.</p>'; return; }
+      for (const p of f) {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `<strong>${p.author || 'You'}</strong><p style="margin:.4rem 0 0">${p.text}</p><p class="muted" style="margin:.4rem 0 0">${new Date(p.ts).toLocaleString()}</p>`;
+        list.appendChild(div);
+      }
+    }
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const t = (ta.value || '').trim(); if (!t) return;
+      const u = window.__currentUser;
+      const feed = load(); feed.push({ text: t, ts: Date.now(), author: u?.email || 'You' });
+      save(feed); ta.value = ''; render();
+      window.pingedUI?.showToast?.('Posted');
+    });
+    document.addEventListener('DOMContentLoaded', render);
+  </script>
 </body>
 
 </html>

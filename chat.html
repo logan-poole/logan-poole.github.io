@@ -1,0 +1,91 @@
+<!-- =============================================================================
+FILE: chat.html  (COMPLETE)
+PURPOSE
+- Private chat placeholder page reachable from the dashboard tile.
+- Protected via data-require-auth="true".
+============================================================================= -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pinged — Chat</title>
+  <link rel="stylesheet" href="styles/style.css" />
+  <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
+  <style>
+    .chat-wrap { max-width: 960px; margin: 0 auto; }
+    .chat-log {
+      height: 50vh;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      overflow: auto;
+      background: var(--card-bg);
+    }
+    .chat-input { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 8px; }
+  </style>
+</head>
+<body data-require-auth="true">
+  <header class="topnav">
+    <a href="dashboard.html" class="nav-left" style="text-decoration:none;">
+      <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
+      <span class="app-name">Pinged</span>
+    </a>
+    <nav class="nav-right">
+      <a href="index.html"  data-auth="public">Home</a>
+      <a href="faq.html"    data-auth="public">FAQs</a>
+      <a href="privacy.html"data-auth="public">Privacy</a>
+      <a href="terms.html"  data-auth="public">Terms</a>
+      <a href="support.html"data-auth="public">Support</a>
+      <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
+      <a href="feed.html"      data-auth="protected" hidden>Feed</a>
+      <a href="map.html"       data-auth="protected" hidden>Map</a>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
+    </nav>
+  </header>
+
+  <main class="content container chat-wrap">
+    <p><a href="dashboard.html">← Back to Dashboard</a></p>
+    <h1 class="page-title">Chat</h1>
+
+    <div id="chat-log" class="chat-log"></div>
+    <form id="chat-form" class="chat-input">
+      <input id="chat-text" type="text" placeholder="Type a message…" autocomplete="off" />
+      <button class="primary" type="submit">Send</button>
+    </form>
+  </main>
+
+  <footer><p>&copy; 2025 Pinged. All rights reserved.</p></footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/auth-guard.js"></script>
+  <script src="scripts/ui.js" defer></script>
+  <script src="scripts/theme-toggle.js" defer></script>
+  <script>
+    // Local-only demo chat (not real-time)
+    const KEY='pinged_demo_chat_v1';
+    const $=(s,r=document)=>r.querySelector(s); const log=$('#chat-log'), form=$('#chat-form'), txt=$('#chat-text');
+    function load(){ try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return[]} }
+    function save(x){ try{localStorage.setItem(KEY, JSON.stringify(x))}catch{} }
+    function render(){
+      log.innerHTML='';
+      const msgs=load();
+      for(const m of msgs){
+        const p=document.createElement('p');
+        p.innerHTML = `<strong>${m.author||'You'}:</strong> ${m.text} <span class="muted" style="font-size:.8em">(${new Date(m.ts).toLocaleTimeString()})</span>`;
+        log.appendChild(p);
+      }
+      log.scrollTop = log.scrollHeight;
+    }
+    form.addEventListener('submit',(e)=>{
+      e.preventDefault();
+      const t=(txt.value||'').trim(); if(!t) return;
+      const u=window.__currentUser;
+      const msgs=load(); msgs.push({text:t, ts:Date.now(), author:u?.email||'You'});
+      save(msgs); txt.value=''; render();
+    });
+    document.addEventListener('DOMContentLoaded', render);
+  </script>
+</body>
+</html>

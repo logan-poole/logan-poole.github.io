@@ -1,0 +1,84 @@
+<!-- =============================================================================
+FILE: friends.html  (COMPLETE)
+PURPOSE
+- Private friends management placeholder page.
+- Protected via data-require-auth="true".
+============================================================================= -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pinged — Friends</title>
+  <link rel="stylesheet" href="styles/style.css" />
+  <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
+</head>
+<body data-require-auth="true">
+  <header class="topnav">
+    <a href="dashboard.html" class="nav-left" style="text-decoration:none;">
+      <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
+      <span class="app-name">Pinged</span>
+    </a>
+    <nav class="nav-right">
+      <a href="index.html"  data-auth="public">Home</a>
+      <a href="faq.html"    data-auth="public">FAQs</a>
+      <a href="privacy.html"data-auth="public">Privacy</a>
+      <a href="terms.html"  data-auth="public">Terms</a>
+      <a href="support.html"data-auth="public">Support</a>
+      <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
+      <a href="feed.html"      data-auth="protected" hidden>Feed</a>
+      <a href="map.html"       data-auth="protected" hidden>Map</a>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
+    </nav>
+  </header>
+
+  <main class="content container">
+    <p><a href="dashboard.html">← Back to Dashboard</a></p>
+    <h1 class="page-title">Friends</h1>
+
+    <section class="card">
+      <div class="form-grid">
+        <div>
+          <label for="invite-email">Invite by email</label>
+          <input id="invite-email" type="email" placeholder="friend@example.com" />
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <button id="invite-btn" class="primary" type="button">Send Invite</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>My Friends</h3>
+      <ul id="friends-list" class="muted" style="margin-top:8px;"></ul>
+    </section>
+  </main>
+
+  <footer><p>&copy; 2025 Pinged. All rights reserved.</p></footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/auth-guard.js"></script>
+  <script src="scripts/ui.js" defer></script>
+  <script src="scripts/theme-toggle.js" defer></script>
+  <script>
+    // Placeholder local-only friend list
+    const KEY='pinged_demo_friends_v1';
+    const $=(s,r=document)=>r.querySelector(s); const list=$('#friends-list');
+    function load(){ try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return[]} }
+    function save(x){ try{localStorage.setItem(KEY, JSON.stringify(x))}catch{} }
+    function render(){
+      const items=load();
+      list.innerHTML = items.length ? items.map(e=>`<li>${e}</li>`).join('') : '<li class="muted">No friends yet.</li>';
+    }
+    document.getElementById('invite-btn').addEventListener('click', ()=>{
+      const v = String(document.getElementById('invite-email').value||'').trim();
+      if(!v) return;
+      const items=load(); items.push(v); save(items); render();
+      window.pingedUI?.showToast?.('Invite queued');
+      document.getElementById('invite-email').value='';
+    });
+    document.addEventListener('DOMContentLoaded', render);
+  </script>
+</body>
+</html>

@@ -1,17 +1,20 @@
-<!-- =======================================================================
-     FILE: disclaimer.html
-     PURPOSE:
-       - Public Disclaimer page; nav toggles via ui.js.
-     ======================================================================= -->
+<!-- disclaimer.html  (UPDATED to use the same data-auth values as the rest of the site) -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+  <!-- 
+    NOTE
+    - This page was using data-auth="guest"/"authed". 
+    - Updated to data-auth="public"/"protected" so scripts/auth-guard.js can toggle correctly.
+  -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Disclaimer – Pinged</title>
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
 </head>
+
 <body>
   <header class="topnav">
     <a href="index.html" class="nav-left" style="text-decoration:none;">
@@ -19,29 +22,38 @@
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <a href="index.html"   data-auth="guest">Home</a>
-      <a href="faq.html"     data-auth="guest">FAQs</a>
-      <a href="privacy.html" data-auth="guest">Privacy</a>
-      <a href="terms.html"   data-auth="guest">Terms</a>
-      <a href="support.html" data-auth="guest">Support</a>
-      <a href="dashboard.html" data-auth="authed">Dashboard</a>
-      <a href="feed.html"      data-auth="authed">Feed</a>
-      <a href="map.html"       data-auth="authed">Map</a>
+      <!-- Public (only when signed OUT) -->
+      <a href="index.html" data-auth="public">Home</a>
+      <a href="faq.html" data-auth="public">FAQs</a>
+      <a href="privacy.html" data-auth="public">Privacy</a>
+      <a href="terms.html" data-auth="public">Terms</a>
+      <a href="support.html" data-auth="public">Support</a>
+
+      <!-- Protected (only when signed IN) -->
+      <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
+      <a href="feed.html" data-auth="protected" hidden>Feed</a>
+      <a href="map.html" data-auth="protected" hidden>Map</a>
+
       <button id="themeToggle" class="theme-toggle" type="button">🌓</button>
     </nav>
   </header>
 
-  <main class="content">
-    <section>
-      <h2>Legal Disclaimer</h2>
-      <p>This is a student project and is provided “as-is”.</p>
+  <main class="content" style="max-width:1000px;margin:0 auto;">
+    <h1>Legal Disclaimer</h1>
+    <section class="card">
+      <p>This is a student project and is provided “as‑is”. Features may change without notice.</p>
     </section>
   </main>
 
-  <footer><p>&copy; 2025 Pinged. All rights reserved.</p></footer>
+  <footer>
+    <p>&copy; 2025 Pinged. All rights reserved.</p>
+  </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/auth-guard.js"></script>
   <script defer src="./scripts/ui.js?v=11"></script>
   <script defer src="./scripts/theme-toggle.js?v=2"></script>
 </body>
+
 </html>

@@ -1,10 +1,10 @@
-<!-- =======================================================================
-     FILE: faq.html
-     PURPOSE:
-       - Public FAQ with shared nav that prunes on auth via ui.js.
-     ======================================================================= -->
+<!-- faq.html
+     - Public-only page (redirects to dashboard if logged in)
+     - Added Supabase + config + auth-guard for nav toggling & gating
+-->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -12,40 +12,115 @@
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
 </head>
-<body>
+
+<body data-public-only="true">
   <header class="topnav">
     <a href="index.html" class="nav-left" style="text-decoration:none;">
       <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <a href="index.html"   data-auth="guest">Home</a>
-      <a href="faq.html"     data-auth="guest">FAQs</a>
-      <a href="privacy.html" data-auth="guest">Privacy</a>
-      <a href="terms.html"   data-auth="guest">Terms</a>
-      <a href="support.html" data-auth="guest">Support</a>
-      <a href="dashboard.html" data-auth="authed">Dashboard</a>
-      <a href="feed.html"      data-auth="authed">Feed</a>
-      <a href="map.html"       data-auth="authed">Map</a>
-      <button id="themeToggle" class="theme-toggle" type="button">🌓</button>
+      <!-- Public -->
+      <a href="index.html" data-auth="public">Home</a>
+      <a href="faq.html" data-auth="public" class="active">FAQs</a>
+      <a href="privacy.html" data-auth="public">Privacy</a>
+      <a href="terms.html" data-auth="public">Terms</a>
+      <a href="support.html" data-auth="public">Support</a>
+      <!-- Private -->
+      <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
+      <a href="feed.html" data-auth="protected" hidden>Feed</a>
+      <a href="map.html" data-auth="protected" hidden>Map</a>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
     </nav>
   </header>
 
-  <main class="content">
-    <section>
-      <h2>How does Pinged work?</h2>
-      <p>Sign in, post updates to your feed, and view your friends on the map (with their consent).</p>
+  <main class="content" style="max-width:1000px;margin:0 auto;">
+    <h1>Frequently Asked Questions</h1>
+    <p class="muted">Quick answers about accounts, privacy, AR, and more.</p>
+
+    <section class="card">
+      <h2>Accounts &amp; Login</h2>
+      <ul>
+        <li><strong>How do I join Pinged?</strong> Pinged is invite‑only during development. Ask for an invite on the <a
+            href="support.html">Support</a> page.</li>
+        <li><strong>Do I need an email?</strong> Yes. We currently support email+password. Magic link and social sign‑in
+          may be added later.</li>
+        <li><strong>I forgot my password.</strong> Use “Forgot Password” (when enabled) or email <a
+            href="mailto:support@pinged.nz">support@pinged.nz</a>.</li>
+        <li><strong>Multiple devices?</strong> Supported. For safety we may limit concurrent sessions per account.</li>
+      </ul>
     </section>
-    <section>
-      <h2>Is my location private?</h2>
-      <p>Only approved friends can see your location. Control this in Settings.</p>
+
+    <section class="card">
+      <h2>Privacy &amp; Safety</h2>
+      <ul>
+        <li><strong>Who can see my location?</strong> Only friends you approve. You can go invisible at any time from
+          Settings.</li>
+        <li><strong>Do you sell my data?</strong> No. We don’t sell or rent personal data. See <a
+            href="privacy.html">Privacy</a>.</li>
+        <li><strong>Is location encrypted?</strong> Data is transported over HTTPS (TLS). Database access is restricted
+          with Row Level Security (RLS).</li>
+        <li><strong>What if I feel unsafe?</strong> Go invisible immediately. You can also block/report users in-app
+          (when available) or contact <a href="support.html">Support</a>.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Map &amp; AR</h2>
+      <ul>
+        <li><strong>How accurate is AR?</strong> Depends on device sensors, GPS signal, and surroundings. Outdoors in
+          open areas is best.</li>
+        <li><strong>Does it work indoors?</strong> Sometimes. Large buildings can reduce GPS accuracy; AR may fall back
+          to compass and last known position.</li>
+        <li><strong>Battery life?</strong> Continuous GPS/AR uses more battery. Close AR when not needed and toggle
+          visibility off to pause updates.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Friends &amp; Groups</h2>
+      <ul>
+        <li><strong>How do I add friends?</strong> Search by username/email, send a request, and wait for approval.</li>
+        <li><strong>Can I hide from specific friends?</strong> Yes—toggle per‑friend visibility (when available) or go
+          fully invisible.</li>
+        <li><strong>Block/report?</strong> Yes. You can block users or report abuse in‑app (coming soon) or via <a
+            href="support.html">Support</a>.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Data &amp; Storage</h2>
+      <ul>
+        <li><strong>What do you store?</strong> Basic account info, friends list, chat messages, and recent location
+          updates to enable core features.</li>
+        <li><strong>How long do you keep data?</strong> Only as long as needed to provide the service or as required by
+          law. Aggregated analytics may be anonymised.</li>
+        <li><strong>Can I delete my data?</strong> Yes—request account deletion via <a
+            href="mailto:support@pinged.nz">support@pinged.nz</a>.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Pricing &amp; Availability</h2>
+      <ul>
+        <li><strong>How much does it cost?</strong> Early access is free. Paid tiers may come later with additional
+          features.</li>
+        <li><strong>Where is it available?</strong> New Zealand first; we’ll expand over time.</li>
+      </ul>
     </section>
   </main>
 
-  <footer><p>&copy; 2025 Pinged. All rights reserved.</p></footer>
+  <footer>
+    <p>&copy; 2025 Pinged. All rights reserved.</p>
+  </footer>
 
+  <!-- Scripts (Order matters) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/auth-guard.js"></script>
+
   <script defer src="./scripts/ui.js?v=11"></script>
   <script defer src="./scripts/theme-toggle.js?v=2"></script>
 </body>
+
 </html>

@@ -1,68 +1,90 @@
+<!-- =============================================================================
+FILE: map.html  (COMPLETE)
+PURPOSE
+- Dedicated private Map page. Loads Mapbox CSS/JS and scripts/map.js.
+- Protected via data-require-auth="true". No modal/iframe logic here.
+- Supports optional embed chrome-less mode via ?embed=1 (kept for future use).
+============================================================================= -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Map – Pinged</title>
+  <title>Pinged — Map</title>
 
-  <!-- CSS (Mapbox GL + Geocoder) -->
-  <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet" />
-  <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.2/mapbox-gl-geocoder.css"
+  <link rel="stylesheet" href="styles/style.css" />
+  <link rel="stylesheet" href="styles/map.css" />
+  <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
+
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.css" rel="stylesheet" />
+  <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.css"
     rel="stylesheet" />
 
-  <!-- App styles -->
-  <link href="./styles/style.css?v=36" rel="stylesheet" />
+  <style>
+    html.is-embed .topnav,
+    html.is-embed footer {
+      display: none !important;
+    }
 
-  <!-- Early: mark embed mode ASAP (same as feed) -->
-  <script>
-    (function () {
-      var qp = new URLSearchParams(location.search);
-      if (window.self !== window.top || qp.get('embed') === '1') {
-        document.documentElement.classList.add('embed');
-      }
-    })();
-  </script>
+    html.is-embed main.content {
+      padding: 0 !important;
+      margin: 0 !important;
+      max-width: none !important;
+    }
+  </style>
 </head>
 
-<body>
+<body class="map-page" data-require-auth="true">
   <header class="topnav">
-    <a href="index.html" class="nav-left" style="text-decoration:none;">
+    <a href="dashboard.html" class="nav-left" style="text-decoration:none;">
       <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <a href="dashboard.html">Dashboard</a>
-      <a href="feed.html">Feed</a>
-      <a class="active" href="map.html">Map</a>
-      <button id="theme-toggle" class="theme-toggle" type="button">🌓</button>
+      <a href="index.html" data-auth="public">Home</a>
+      <a href="faq.html" data-auth="public">FAQs</a>
+      <a href="privacy.html" data-auth="public">Privacy</a>
+      <a href="terms.html" data-auth="public">Terms</a>
+      <a href="support.html" data-auth="public">Support</a>
+      <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
+      <a href="feed.html" data-auth="protected" hidden>Feed</a>
+      <a href="map.html" data-auth="protected" hidden>Map</a>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
     </nav>
   </header>
 
   <main class="content">
-    <div id="map" class="map"></div>
-    <div id="map-status" class="toast" hidden></div>
+    <p><a href="dashboard.html">← Back to Dashboard</a></p>
+    <div id="map-status" class="badge" hidden></div>
+    <div id="map"></div>
   </main>
 
   <footer>
     <p>&copy; 2025 Pinged. All rights reserved.</p>
   </footer>
 
-  <!-- Load Mapbox libraries BEFORE your app scripts -->
-  <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
-  <script
-    src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.2/mapbox-gl-geocoder.min.js"></script>
-  <!-- Optional language helper (your code checks for it) -->
-  <script src="https://unpkg.com/@mapbox/mapbox-gl-language/dist/mapbox-gl-language.js"></script>
+  <script>
+    (function () {
+      const u = new URL(location.href);
+      if (u.searchParams.get('embed') === '1') {
+        document.documentElement.classList.add('is-embed');
+      }
+    })();
+  </script>
 
-  <!-- Other libs -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/auth-guard.js"></script>
 
-  <!-- App scripts (order matters: config → ui → map; theme can be anywhere) -->
-  <script defer src="./scripts/config.js?v=3"></script>
-  <script defer src="./scripts/ui.js?v=10"></script>
-  <script defer src="./scripts/map.js?v=31"></script>
-  <script defer src="./scripts/theme-toggle.js?v=2"></script>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.js"></script>
+  <script
+    src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.min.js"></script>
+  <script src="https://unpkg.com/@mapbox/mapbox-gl-language@1.0.1/dist/mapbox-gl-language.js"></script>
+
+  <script src="scripts/map.js"></script>
+  <script src="scripts/ui.js" defer></script>
+  <script src="scripts/theme-toggle.js" defer></script>
 </body>
 
 </html>

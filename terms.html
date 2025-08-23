@@ -1,10 +1,10 @@
-<!-- =======================================================================
-     FILE: terms.html
-     PURPOSE:
-       - Public Terms page; nav toggles via ui.js.
-     ======================================================================= -->
+<!-- terms.html
+     - Public-only page (redirects to dashboard if logged in)
+     - Added Supabase + config + auth-guard
+-->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -12,36 +12,105 @@
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
 </head>
-<body>
+
+<body data-public-only="true">
   <header class="topnav">
     <a href="index.html" class="nav-left" style="text-decoration:none;">
       <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <a href="index.html"   data-auth="guest">Home</a>
-      <a href="faq.html"     data-auth="guest">FAQs</a>
-      <a href="privacy.html" data-auth="guest">Privacy</a>
-      <a href="terms.html"   data-auth="guest">Terms</a>
-      <a href="support.html" data-auth="guest">Support</a>
-      <a href="dashboard.html" data-auth="authed">Dashboard</a>
-      <a href="feed.html"      data-auth="authed">Feed</a>
-      <a href="map.html"       data-auth="authed">Map</a>
+      <a href="index.html" data-auth="public">Home</a>
+      <a href="faq.html" data-auth="public">FAQs</a>
+      <a href="privacy.html" data-auth="public">Privacy</a>
+      <a href="terms.html" data-auth="public" class="active">Terms</a>
+      <a href="support.html" data-auth="public">Support</a>
+      <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
+      <a href="feed.html" data-auth="protected" hidden>Feed</a>
+      <a href="map.html" data-auth="protected" hidden>Map</a>
       <button id="themeToggle" class="theme-toggle" type="button">🌓</button>
     </nav>
   </header>
 
-  <main class="content">
-    <h2>Terms of Service</h2>
-    <div class="legal-block">
-      <p>Student project, provided as-is.</p>
-    </div>
+  <main class="content" style="max-width:1000px;margin:0 auto;">
+    <h1>Terms of Service</h1>
+    <p class="muted">Effective date: 24 August 2025</p>
+
+    <section class="card">
+      <h2>1. Agreement</h2>
+      <p>By creating an account or using Pinged, you agree to these Terms and our Privacy Policy.</p>
+    </section>
+
+    <section class="card">
+      <h2>2. Your Account</h2>
+      <ul>
+        <li>You must provide accurate information and keep it up to date.</li>
+        <li>You are responsible for securing your account and device.</li>
+        <li>We may suspend or terminate accounts that violate these Terms.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>3. Acceptable Use</h2>
+      <ul>
+        <li>Do not harass, stalk, or harm others.</li>
+        <li>Do not attempt to access data you are not authorised to view.</li>
+        <li>Do not use Pinged while operating vehicles or in unsafe conditions.</li>
+        <li>Do not reverse engineer, disrupt, or abuse the service.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>4. Location &amp; AR Safety</h2>
+      <p>Location accuracy varies with device and environment. AR is a visual aid—stay aware of surroundings. You are
+        responsible for your personal safety and compliance with local laws.</p>
+    </section>
+
+    <section class="card">
+      <h2>5. Content</h2>
+      <p>You retain ownership of content you submit (e.g., messages, media). You grant us a limited licence to process
+        that content solely to operate the service.</p>
+    </section>
+
+    <section class="card">
+      <h2>6. Service Changes</h2>
+      <p>We may modify or discontinue features. Where feasible, we’ll provide notice of significant changes.</p>
+    </section>
+
+    <section class="card">
+      <h2>7. Disclaimers</h2>
+      <p>Pinged is provided “as is”. We do not guarantee uninterrupted, secure, or error‑free operation.</p>
+    </section>
+
+    <section class="card">
+      <h2>8. Limitation of Liability</h2>
+      <p>To the maximum extent permitted by law, we are not liable for indirect, incidental, or consequential damages
+        arising from your use of the service.</p>
+    </section>
+
+    <section class="card">
+      <h2>9. Governing Law</h2>
+      <p>These Terms are governed by the laws of New Zealand. Disputes are subject to the exclusive jurisdiction of New
+        Zealand courts.</p>
+    </section>
+
+    <section class="card">
+      <h2>10. Contact</h2>
+      <p>Questions? Email <a href="mailto:support@pinged.nz">support@pinged.nz</a>.</p>
+    </section>
   </main>
 
-  <footer><p>&copy; 2025 Pinged. All rights reserved.</p></footer>
+  <footer>
+    <p>&copy; 2025 Pinged. All rights reserved.</p>
+  </footer>
 
+  <!-- Scripts (Order matters) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/auth-guard.js"></script>
+
   <script defer src="./scripts/ui.js?v=11"></script>
   <script defer src="./scripts/theme-toggle.js?v=2"></script>
 </body>
+
 </html>

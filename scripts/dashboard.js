@@ -1,66 +1,51 @@
-/* =======================================================================================
-FILE: scripts/dashboard.js  (FULL — UPDATED)
-CHANGES
-- No external title management (we removed the heading).
-- Loads feed/map with ?embed=1 to suppress inner nav/footer.
-- Auto-resizes iframe height for feed using postMessage (embed-mode.js).
-- Map view uses CSS aspect-ratio; we clear any inline height that feed might have set.
-======================================================================================= */
+// ============================================================================
+// FILE: scripts/dashboard.js  (COMPLETE, NEW)
+// WHAT THIS DOES
+// - Waits for auth-guard/ui to initialise, then renders the dashboard grid.
+// - Shows a friendly message if the user is not signed in (auth-guard should
+//   already redirect, but this avoids a blank state if that is disabled).
+// - Hooks the "Friends" & "Settings" buttons to open the modals from ui.js.
+// ============================================================================
 (function () {
-    const stage = document.getElementById('stage');
-    const frame = document.getElementById('stage-frame');
-    const dockItems = Array.from(document.querySelectorAll('.dock .card[data-view]'));
+    const $ = (sel, root = document) => root.querySelector(sel);
 
-    if (!stage || !frame) return;
+    async function boot() {
+        const status = $('#dash-status');
+        const grid = $('#dash-grid');
 
-    const SRC = {
-        feed: 'feed.html?embed=1',
-        map: 'map.html?embed=1'
-    };
+        // Wait for ui.js to resolve user/profile if present
+        try { await window.__loadUser; } catch { }
 
-    function setMode(mode) {
-        stage.classList.remove('mode-feed', 'mode-map');
-        stage.classList.add(`mode-${mode}`);
+        // If auth-guard didn't redirect, make sure user exists
+        const sb = window.__sb;
+        let authed = false;
+        try {
+            const { data: { user } } = await sb.auth.getUser();
+            authed = !!user;
+        } catch { }
 
-        if (mode === 'feed') {
-            frame.src = SRC.feed;
-            // let feed control its own height (posted up to parent)
-            frame.style.height = '';
-            stage.style.height = '';
-        } else {
-            frame.src = SRC.map;
-            // map uses aspect-ratio on the stage
-            stage.style.height = '';
-            frame.style.height = '100%';
+        if (!authed) {
+            if (status) {
+                status.classList.add('danger');
+                status.textContent = 'You are not signed in. Redirecting to Home…';
+            }
+            setTimeout(() => location.replace('index.html?signin=1'), 600);
+            return;
         }
+
+        if (status) status.hidden = true;
+        if (grid) grid.style.opacity = '1';
+
+        // Wire modal buttons
+        document.querySelectorAll('[data-open="settings"]').forEach(b => b.addEventListener('click', () => window.pingedUI?.openAuthModal ? window.pingedUI.openAuthModal('Account') : window.open('privacy.html', '_self')));
+        document.querySelectorAll('[data-open="friends"]').forEach(b => b.addEventListener('click', () => window.open('feed.html', '_self')));
+
+        // Keep UI in sync with future auth changes
+        window.addEventListener('pinged:auth', (e) => {
+            if (!e?.detail?.authed) location.replace('index.html?signin=1');
+        });
     }
 
-    // Dock interactions
-    dockItems.forEach(el => {
-        el.addEventListener('click', () => {
-            const view = el.getAttribute('data-view');
-            if (view === 'settings') { window.openSettingsModal?.(); return; }
-            if (view === 'friends') { window.openFriendsModal?.(); return; }
-            if (view === 'feed') { setMode('feed'); return; }
-            if (view === 'map') { setMode('map'); return; }
-        });
-        el.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
-        });
-    });
-
-    // Auto-height for FEED iframe
-    window.addEventListener('message', (evt) => {
-        const data = evt?.data || {};
-        if (data.type === 'embedHeight') {
-            const min = 420;
-            const max = Math.round(window.innerHeight * 0.85);
-            const h = Math.max(min, Math.min(max, Number(data.h) || min));
-            frame.style.height = `${h}px`;
-            stage.style.height = `${h}px`;
-        }
-    });
-
-    // Default entry
-    setMode('feed');
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
 })();

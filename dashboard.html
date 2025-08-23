@@ -1,78 +1,119 @@
-<!-- =======================================================================================
-FILE: dashboard.html  (FULL — FIXED)
-CHANGES
-- Removed the extra "Feed" title above the stage (per your point #2).
-- Stage iframe loads content with ?embed=1 so inner nav/footer are hidden.
-- Stage width increased to use more screen space; animation handled by dashboard.css.
-- No other structural changes.
-======================================================================================= -->
+<!-- =============================================================================
+dashboard.html
+============================================================================= -->
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard – Pinged</title>
+  <title>Pinged — Dashboard</title>
 
   <!-- Global + page styles -->
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="stylesheet" href="styles/dashboard.css" />
-  <link rel="stylesheet" href="styles/embed.css" />
+
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
 </head>
 
-<body>
-  <!-- Top navigation -->
+<body class="dashboard-page" data-require-auth="true">
   <header class="topnav">
-    <a href="index.html" class="nav-left home-link" style="text-decoration:none;">
+    <a href="index.html" class="nav-left" style="text-decoration:none;">
       <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <a href="dashboard.html">Dashboard</a>
-      <a href="feed.html">Feed</a>
-      <a href="map.html">Map</a>
-      <button id="themeToggle" class="theme-toggle" type="button">🌓</button>
+      <!-- Public (hidden on protected pages to avoid flicker) -->
+      <a href="index.html" data-auth="public" hidden>Home</a>
+      <a href="faq.html" data-auth="public" hidden>FAQs</a>
+      <a href="privacy.html" data-auth="public" hidden>Privacy</a>
+      <a href="terms.html" data-auth="public" hidden>Terms</a>
+      <a href="support.html" data-auth="public" hidden>Support</a>
+      <!-- Protected -->
+      <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
+      <a href="feed.html" data-auth="protected" hidden>Feed</a>
+      <a href="map.html" data-auth="protected" hidden>Map</a>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
+      <!-- profile dropdown injected by scripts/ui.js -->
     </nav>
   </header>
 
-  <!-- Stage only (no separate title heading) -->
   <main class="content">
-    <section id="stage" class="stage mode-feed" aria-live="polite">
-      <iframe id="stage-frame" class="stage-frame" src="feed.html?embed=1" title="Feed" loading="eager">
-      </iframe>
-    </section>
+    <div class="dash-inner">
+      <header class="dash-head">
+        <h1>Dashboard</h1>
+        <p class="muted">Choose where to go</p>
+      </header>
 
-    <!-- Dock (secondary options) -->
-    <section class="dock" aria-label="Quick actions">
-      <div class="card" data-view="map" role="button" tabindex="0" aria-label="Open Map">
-        <h3>🗺️ Map</h3>
-        <p>Location &amp; layers</p>
+      <div class="tiles">
+        <a class="tile" href="feed.html" aria-label="Open Feed">
+          <div class="icon">
+            <img class="icon-img" src="assets/icons/feed.png" data-still="assets/icons/feed.png"
+              data-anim="assets/icons/feed.gif" alt="Feed icon" loading="lazy" />
+          </div>
+          <h3>Feed</h3>
+          <p class="muted">Quick updates from friends and groups.</p>
+        </a>
+
+        <a class="tile" href="map.html" aria-label="Open Map">
+          <div class="icon">
+            <img class="icon-img" src="assets/icons/map.png" data-still="assets/icons/map.png"
+              data-anim="assets/icons/map.gif" alt="Map icon" loading="lazy" />
+          </div>
+          <h3>Map</h3>
+          <p class="muted">Live map, traffic, beacons, routing.</p>
+        </a>
+
+        <a class="tile" href="friends.html" aria-label="Open Friends">
+          <div class="icon">
+            <img class="icon-img" src="assets/icons/friends.png" data-still="assets/icons/friends.png"
+              data-anim="assets/icons/friends.gif" alt="Friends icon" loading="lazy" />
+          </div>
+          <h3>Friends</h3>
+          <p class="muted">Manage friends and invites.</p>
+        </a>
+
+        <a class="tile" href="customise.html" aria-label="Open Customise">
+          <div class="icon">
+            <img class="icon-img" src="assets/icons/customise.png" data-still="assets/icons/customise.png"
+              data-anim="assets/icons/customise.gif" alt="Customise icon" loading="lazy" />
+          </div>
+          <h3>Customise</h3>
+          <p class="muted">Theme and appearance preferences.</p>
+        </a>
+
+        <a class="tile" href="settings.html" aria-label="Open Settings">
+          <div class="icon">
+            <img class="icon-img" src="assets/icons/settings.png" data-still="assets/icons/settings.png"
+              data-anim="assets/icons/settings.gif" alt="Settings icon" loading="lazy" />
+          </div>
+          <h3>Settings</h3>
+          <p class="muted">Profile info and privacy controls.</p>
+        </a>
+
+        <a class="tile" href="chat.html" aria-label="Open Chat">
+          <div class="icon">
+            <img class="icon-img" src="assets/icons/chat.png" data-still="assets/icons/chat.png"
+              data-anim="assets/icons/chat.gif" alt="Chat icon" loading="lazy" />
+          </div>
+          <h3>Chat</h3>
+          <p class="muted">Direct messages with your friends.</p>
+        </a>
       </div>
-      <div class="card" data-view="settings" role="button" tabindex="0" aria-label="Open Settings">
-        <h3>⚙️ Settings</h3>
-        <p>Profile &amp; privacy</p>
-      </div>
-      <div class="card" data-view="friends" role="button" tabindex="0" aria-label="Open Friends">
-        <h3>👥 Friends</h3>
-        <p>Social activity</p>
-      </div>
-      <div class="card" data-view="feed" role="button" tabindex="0" aria-label="Open Feed">
-        <h3>💬 Chat / Feed</h3>
-        <p>Messaging &amp; posts</p>
-      </div>
-    </section>
+    </div>
   </main>
 
   <footer>
     <p>&copy; 2025 Pinged. All rights reserved.</p>
   </footer>
 
-  <!-- Scripts -->
+  <!-- Scripts (order matters) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script defer src="./scripts/ui.js?v=10"></script>
-  <script defer src="./scripts/dashboard.js?v=5"></script>
-  <script defer src="./scripts/theme-toggle.js?v=2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/auth-guard.js"></script>
+  <script src="scripts/ui.js" defer></script>
+  <script src="scripts/theme-toggle.js" defer></script>
+  <script src="scripts/icon-swap.js" defer></script>
 </body>
 
 </html>

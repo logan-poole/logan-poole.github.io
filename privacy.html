@@ -1,10 +1,10 @@
-<!-- =======================================================================
-     FILE: privacy.html
-     PURPOSE:
-       - Public Privacy page; nav toggles via ui.js.
-     ======================================================================= -->
+<!-- privacy.html
+     - Public-only page (redirects to dashboard if logged in)
+     - Added Supabase + config + auth-guard
+-->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -12,34 +12,120 @@
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
 </head>
-<body>
+
+<body data-public-only="true">
   <header class="topnav">
     <a href="index.html" class="nav-left" style="text-decoration:none;">
       <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <a href="index.html"   data-auth="guest">Home</a>
-      <a href="faq.html"     data-auth="guest">FAQs</a>
-      <a href="privacy.html" data-auth="guest">Privacy</a>
-      <a href="terms.html"   data-auth="guest">Terms</a>
-      <a href="support.html" data-auth="guest">Support</a>
-      <a href="dashboard.html" data-auth="authed">Dashboard</a>
-      <a href="feed.html"      data-auth="authed">Feed</a>
-      <a href="map.html"       data-auth="authed">Map</a>
+      <a href="index.html" data-auth="public">Home</a>
+      <a href="faq.html" data-auth="public">FAQs</a>
+      <a href="privacy.html" data-auth="public" class="active">Privacy</a>
+      <a href="terms.html" data-auth="public">Terms</a>
+      <a href="support.html" data-auth="public">Support</a>
+      <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
+      <a href="feed.html" data-auth="protected" hidden>Feed</a>
+      <a href="map.html" data-auth="protected" hidden>Map</a>
       <button id="themeToggle" class="theme-toggle" type="button">🌓</button>
     </nav>
   </header>
 
-  <main class="content">
-    <h2>Privacy Policy</h2>
-    <p>We only store what’s necessary to make the app work. No ads, no sale of data.</p>
+  <main class="content" style="max-width:1000px;margin:0 auto;">
+    <h1>Privacy Policy</h1>
+    <p class="muted">Effective date: 24 August 2025</p>
+
+    <section class="card">
+      <h2>Overview</h2>
+      <p>Pinged (“we”, “our”, “us”) provides location‑assisted friend finding and messaging. We respect your privacy and
+        comply with the New Zealand Privacy Act 2020 where applicable.</p>
+    </section>
+
+    <section class="card">
+      <h2>Information We Collect</h2>
+      <ul>
+        <li><strong>Account Data:</strong> Email, display name, profile image, and basic settings.</li>
+        <li><strong>Location Data:</strong> GPS coordinates and timestamps when you choose to share.</li>
+        <li><strong>Friends &amp; Messages:</strong> Approved connections plus message content/metadata to operate chat.
+        </li>
+        <li><strong>Device/Usage:</strong> Logs for performance, security, and abuse prevention.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>How We Use Information</h2>
+      <ul>
+        <li>Provide core features (map, AR direction, chat).</li>
+        <li>Maintain account security and integrity.</li>
+        <li>Improve performance and reliability.</li>
+        <li>Comply with legal obligations where required.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Sharing</h2>
+      <p>We do not sell your personal information. We share data with service providers (e.g., hosting and storage)
+        under contracts that require confidentiality and security. Your live location is only visible to approved
+        friends and governed by your visibility settings.</p>
+    </section>
+
+    <section class="card">
+      <h2>Security</h2>
+      <p>We use encryption in transit (TLS), strict database row‑level security, and access controls. No internet
+        service can be 100% secure; we monitor and improve safeguards over time.</p>
+    </section>
+
+    <section class="card">
+      <h2>Retention</h2>
+      <p>We keep personal information only as long as necessary to provide the service or as required by law. We may
+        anonymise and aggregate analytics for product improvement.</p>
+    </section>
+
+    <section class="card">
+      <h2>Your Rights</h2>
+      <ul>
+        <li>Access and correct your information.</li>
+        <li>Request deletion of your account and associated data.</li>
+        <li>Control location sharing (visible/invisible).</li>
+      </ul>
+      <p>To exercise rights, contact <a href="mailto:support@pinged.nz">support@pinged.nz</a>.</p>
+    </section>
+
+    <section class="card">
+      <h2>International Transfers</h2>
+      <p>Your data may be processed outside New Zealand. We ensure suitable protections consistent with applicable law.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Children</h2>
+      <p>Pinged is not directed to children under 13. If you believe a child has provided personal information, contact
+        us so we can delete it.</p>
+    </section>
+
+    <section class="card">
+      <h2>Changes</h2>
+      <p>We may update this policy. Material changes will be highlighted here with a new effective date.</p>
+    </section>
+
+    <section class="card">
+      <h2>Contact</h2>
+      <p>Email: <a href="mailto:support@pinged.nz">support@pinged.nz</a></p>
+    </section>
   </main>
 
-  <footer><p>&copy; 2025 Pinged. All rights reserved.</p></footer>
+  <footer>
+    <p>&copy; 2025 Pinged. All rights reserved.</p>
+  </footer>
 
+  <!-- Scripts (Order matters) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/auth-guard.js"></script>
+
   <script defer src="./scripts/ui.js?v=11"></script>
   <script defer src="./scripts/theme-toggle.js?v=2"></script>
 </body>
+
 </html>
