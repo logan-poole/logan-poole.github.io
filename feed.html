@@ -22,16 +22,19 @@ PURPOSE
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <!-- Public -->
-      <a href="index.html" data-auth="public">Home</a>
-      <a href="faq.html" data-auth="public">FAQs</a>
-      <a href="privacy.html" data-auth="public">Privacy</a>
-      <a href="terms.html" data-auth="public">Terms</a>
-      <a href="support.html" data-auth="public">Support</a>
+      <!-- Public (hidden on private pages to avoid flicker) -->
+      <a href="index.html" data-auth="public" hidden>Home</a>
+      <a href="faq.html" data-auth="public" hidden>FAQs</a>
+      <a href="privacy.html" data-auth="public" hidden>Privacy</a>
+      <a href="terms.html" data-auth="public" hidden>Terms</a>
+      <a href="support.html" data-auth="public" hidden>Support</a>
       <!-- Protected -->
       <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
-      <a href="feed.html" data-auth="protected" hidden>Feed</a>
+      <a href="feed.html" data-auth="protected" aria-current="page" hidden>Feed</a>
       <a href="map.html" data-auth="protected" hidden>Map</a>
+      <a href="friends.html" data-auth="protected" hidden>Friends</a>
+      <a href="settings.html" data-auth="protected" hidden>Settings</a>
+      <a href="chat.html" data-auth="protected" hidden>Chat</a>
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
     </nav>
   </header>
@@ -54,13 +57,26 @@ PURPOSE
     <p>&copy; 2025 Pinged. All rights reserved.</p>
   </footer>
 
+  <!-- Core (order matters) -->
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/config.js"></script>
+  <script src="scripts/sb-client.js"></script>
+  <script src="scripts/page-flags.js"></script>
   <script src="scripts/auth-guard.js"></script>
+
+
+  <!-- UI -->
   <script src="scripts/ui.js" defer></script>
   <script src="scripts/theme-toggle.js" defer></script>
+
+  <!-- Provide __currentUser for your local demos -->
   <script>
-    // Minimal placeholder feed (local only)
+    window.addEventListener('pinged:auth', (e) => { window.__currentUser = e.detail?.user || null; });
+  </script>
+
+  <!-- Minimal placeholder feed (local only) -->
+  <script>
     const KEY = 'pinged_demo_feed_v1';
     const $ = (s, r = document) => r.querySelector(s);
     const list = $('#feed-list'), form = $('#post-form'), ta = $('#post-text');

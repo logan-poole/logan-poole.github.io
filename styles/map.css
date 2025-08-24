@@ -268,3 +268,17 @@ html[data-theme='dark'] .mini-card .subtle {
     background: #fff;
     cursor: pointer;
 }
+
+/* In styles/map.css (or your main style) */
+#map { position: relative; }
+#map #map-status {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  margin: 0;
+  pointer-events: none;
+  opacity: 0.96;
+}
+
+/* make sure the geocoder is visible and not crowded */
+.mapboxgl-ctrl-top-left .mapboxgl-ctrl-geocoder { margin: 8px; max-width: 72vw; }

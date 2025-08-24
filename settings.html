@@ -7,6 +7,7 @@ PURPOSE
 ============================================================================= -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -14,6 +15,7 @@ PURPOSE
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
 </head>
+
 <body data-require-auth="true">
   <header class="topnav">
     <a href="dashboard.html" class="nav-left" style="text-decoration:none;">
@@ -21,14 +23,19 @@ PURPOSE
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <a href="index.html"  data-auth="public">Home</a>
-      <a href="faq.html"    data-auth="public">FAQs</a>
-      <a href="privacy.html"data-auth="public">Privacy</a>
-      <a href="terms.html"  data-auth="public">Terms</a>
-      <a href="support.html"data-auth="public">Support</a>
+      <!-- Public (hidden on private) -->
+      <a href="index.html" data-auth="public" hidden>Home</a>
+      <a href="faq.html" data-auth="public" hidden>FAQs</a>
+      <a href="privacy.html" data-auth="public" hidden>Privacy</a>
+      <a href="terms.html" data-auth="public" hidden>Terms</a>
+      <a href="support.html" data-auth="public" hidden>Support</a>
+      <!-- Protected -->
       <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
-      <a href="feed.html"      data-auth="protected" hidden>Feed</a>
-      <a href="map.html"       data-auth="protected" hidden>Map</a>
+      <a href="feed.html" data-auth="protected" hidden>Feed</a>
+      <a href="map.html" data-auth="protected" hidden>Map</a>
+      <a href="settings.html" data-auth="protected" aria-current="page" hidden>Settings</a>
+      <a href="friends.html" data-auth="protected" hidden>Friends</a>
+      <a href="chat.html" data-auth="protected" hidden>Chat</a>
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
     </nav>
   </header>
@@ -60,40 +67,48 @@ PURPOSE
     </section>
   </main>
 
-  <footer><p>&copy; 2025 Pinged. All rights reserved.</p></footer>
+  <footer>
+    <p>&copy; 2025 Pinged. All rights reserved.</p>
+  </footer>
 
+  <!-- Core -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/config.js"></script>
+  <script src="scripts/sb-client.js"></script>
+  <script src="scripts/page-flags.js"></script>
   <script src="scripts/auth-guard.js"></script>
+
+  <!-- UI -->
   <script src="scripts/ui.js" defer></script>
   <script src="scripts/theme-toggle.js" defer></script>
+
   <script>
     // Load/save profile similar to the modal version
     const sb = window.__sb;
-    const $ = (id)=>document.getElementById(id);
+    const $ = (id) => document.getElementById(id);
 
-    async function loadProfile(){
-      const { data:{ user } } = await sb.auth.getUser();
+    async function loadProfile() {
+      const { data: { user } } = await sb.auth.getUser();
       if (!user) return;
       const meta = user.user_metadata || {};
       // try db
       let profile = null;
-      try{
+      try {
         const { data, error } = await sb.from('users')
           .select('id,username,display_name,profile_pic,visibility,website,bio')
           .eq('id', user.id).maybeSingle();
-        if(!error && data) profile = data;
-      }catch{}
+        if (!error && data) profile = data;
+      } catch { }
 
-      $('username').value      = profile?.username      ?? (meta.username||'');
-      $('display_name').value  = profile?.display_name  ?? (meta.display_name||'');
-      $('website').value       = profile?.website       ?? (meta.website||'');
-      $('bio').value           = profile?.bio           ?? (meta.bio||'');
-      $('visibility').value    = profile?.visibility    ?? (meta.visibility||'friends');
+      $('username').value = profile?.username ?? (meta.username || '');
+      $('display_name').value = profile?.display_name ?? (meta.display_name || '');
+      $('website').value = profile?.website ?? (meta.website || '');
+      $('bio').value = profile?.bio ?? (meta.bio || '');
+      $('visibility').value = profile?.visibility ?? (meta.visibility || 'friends');
     }
 
-    async function saveProfile(){
-      const { data:{ user } } = await sb.auth.getUser();
+    async function saveProfile() {
+      const { data: { user } } = await sb.auth.getUser();
       if (!user) return alert('Not signed in');
       const payload = {
         id: user.id,
@@ -103,7 +118,7 @@ PURPOSE
         bio: $('bio').value.trim() || null,
         visibility: $('visibility').value || 'friends'
       };
-      try { await sb.from('users').upsert(payload, { onConflict:'id' }); } catch {}
+      try { await sb.from('users').upsert(payload, { onConflict: 'id' }); } catch { }
       await sb.auth.updateUser({ data: payload });
       window.pingedUI?.showToast?.('Saved');
     }
@@ -112,4 +127,5 @@ PURPOSE
     document.getElementById('save-btn').addEventListener('click', saveProfile);
   </script>
 </body>
+
 </html>

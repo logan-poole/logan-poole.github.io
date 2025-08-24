@@ -124,8 +124,6 @@ ul li {
   display: none !important
 }
 
-/* NEW: attribute-based hiding is enforced */
-
 .container {
   max-width: 980px;
   margin: 0 auto;
@@ -701,6 +699,7 @@ button:focus-visible {
   }
 }
 
+/* Legal/support section */
 .legal-support {
   background: var(--section-bg);
   padding: 40px 20px;
@@ -815,6 +814,20 @@ button:focus-visible {
   padding: 18px
 }
 
+/* ============ Auth overlay safety ============ */
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+}
+
+.auth-overlay[aria-hidden="true"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
 /* ============ Mobile Responsiveness ============ */
 @media (max-width:768px) {
   .topnav {
@@ -886,4 +899,9 @@ button:focus-visible {
     animation: none !important;
     transition: none !important
   }
+}
+
+#map {
+  height: 70vh;
+  min-height: 420px;
 }

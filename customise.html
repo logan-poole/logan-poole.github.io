@@ -6,6 +6,7 @@ PURPOSE
 ============================================================================= -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -13,6 +14,7 @@ PURPOSE
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
 </head>
+
 <body data-require-auth="true">
   <header class="topnav">
     <a href="dashboard.html" class="nav-left" style="text-decoration:none;">
@@ -20,14 +22,19 @@ PURPOSE
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <a href="index.html"  data-auth="public">Home</a>
-      <a href="faq.html"    data-auth="public">FAQs</a>
-      <a href="privacy.html"data-auth="public">Privacy</a>
-      <a href="terms.html"  data-auth="public">Terms</a>
-      <a href="support.html"data-auth="public">Support</a>
+      <!-- Public (hidden to avoid flicker) -->
+      <a href="index.html" data-auth="public" hidden>Home</a>
+      <a href="faq.html" data-auth="public" hidden>FAQs</a>
+      <a href="privacy.html" data-auth="public" hidden>Privacy</a>
+      <a href="terms.html" data-auth="public" hidden>Terms</a>
+      <a href="support.html" data-auth="public" hidden>Support</a>
+      <!-- Protected -->
       <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
-      <a href="feed.html"      data-auth="protected" hidden>Feed</a>
-      <a href="map.html"       data-auth="protected" hidden>Map</a>
+      <a href="feed.html" data-auth="protected" hidden>Feed</a>
+      <a href="map.html" data-auth="protected" hidden>Map</a>
+      <a href="customise.html" data-auth="protected" aria-current="page" hidden>Customise</a>
+      <a href="settings.html" data-auth="protected" hidden>Settings</a>
+      <a href="chat.html" data-auth="protected" hidden>Chat</a>
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
     </nav>
   </header>
@@ -49,22 +56,28 @@ PURPOSE
     </section>
   </main>
 
-  <footer><p>&copy; 2025 Pinged. All rights reserved.</p></footer>
+  <footer>
+    <p>&copy; 2025 Pinged. All rights reserved.</p>
+  </footer>
 
+  <!-- Core -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/config.js"></script>
+  <script src="scripts/sb-client.js"></script>
+  <script src="scripts/page-flags.js"></script>
   <script src="scripts/auth-guard.js"></script>
+
+  <!-- UI -->
   <script src="scripts/ui.js" defer></script>
   <script src="scripts/theme-toggle.js" defer></script>
+
   <script>
     // Simple theme controls (delegates to your theme-toggle logic if present)
     const root = document.documentElement;
-    document.getElementById('set-light').onclick = ()=>{ root.dataset.theme='light'; window.dispatchEvent(new CustomEvent('pinged:theme',{detail:'light'})); };
-    document.getElementById('set-dark').onclick  = ()=>{ root.dataset.theme='dark';  window.dispatchEvent(new CustomEvent('pinged:theme',{detail:'dark'})); };
-    document.getElementById('set-system').onclick= ()=>{
-      delete root.dataset.theme;
-      window.dispatchEvent(new CustomEvent('pinged:theme',{detail:matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}));
-    };
+    document.getElementById('set-light').onclick = () => { root.dataset.theme = 'light'; window.dispatchEvent(new CustomEvent('pinged:theme', { detail: 'light' })); };
+    document.getElementById('set-dark').onclick = () => { root.dataset.theme = 'dark'; window.dispatchEvent(new CustomEvent('pinged:theme', { detail: 'dark' })); };
+    document.getElementById('set-system').onclick = () => { delete root.dataset.theme; window.dispatchEvent(new CustomEvent('pinged:theme', { detail: matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light' })); };
   </script>
 </body>
+
 </html>

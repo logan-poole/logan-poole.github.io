@@ -29,10 +29,15 @@ dashboard.html
       <a href="privacy.html" data-auth="public" hidden>Privacy</a>
       <a href="terms.html" data-auth="public" hidden>Terms</a>
       <a href="support.html" data-auth="public" hidden>Support</a>
-      <!-- Protected -->
-      <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
-      <a href="feed.html" data-auth="protected" hidden>Feed</a>
+
+      <!-- Protected (shown after auth) -->
+      <a href="dashboard.html" data-auth="protected" aria-current="page" hidden>Dashboard</a>
       <a href="map.html" data-auth="protected" hidden>Map</a>
+      <a href="feed.html" data-auth="protected" hidden>Feed</a>
+      <a href="friends.html" data-auth="protected" hidden>Friends</a>
+      <a href="settings.html" data-auth="protected" hidden>Settings</a>
+      <a href="chat.html" data-auth="protected" hidden>Chat</a>
+
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
       <!-- profile dropdown injected by scripts/ui.js -->
     </nav>
@@ -43,9 +48,11 @@ dashboard.html
       <header class="dash-head">
         <h1>Dashboard</h1>
         <p class="muted">Choose where to go</p>
+        <p id="dash-status" class="muted" role="status" aria-live="polite"></p>
       </header>
 
-      <div class="tiles">
+      <!-- Tiles fade in once auth verified -->
+      <div id="dash-grid" class="tiles" style="opacity:0; transition: opacity .2s ease-out;">
         <a class="tile" href="feed.html" aria-label="Open Feed">
           <div class="icon">
             <img class="icon-img" src="assets/icons/feed.png" data-still="assets/icons/feed.png"
@@ -110,10 +117,14 @@ dashboard.html
   <!-- Scripts (order matters) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/config.js"></script>
+  <script src="scripts/sb-client.js"></script>
   <script src="scripts/auth-guard.js"></script>
+
+
   <script src="scripts/ui.js" defer></script>
   <script src="scripts/theme-toggle.js" defer></script>
   <script src="scripts/icon-swap.js" defer></script>
+  <script src="scripts/dashboard.js" defer></script>
 </body>
 
 </html>

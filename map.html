@@ -3,10 +3,10 @@ FILE: map.html  (COMPLETE)
 PURPOSE
 - Dedicated private Map page. Loads Mapbox CSS/JS and scripts/map.js.
 - Protected via data-require-auth="true". No modal/iframe logic here.
-- Supports optional embed chrome-less mode via ?embed=1 (kept for future use).
+- Supports optional embed chrome-less mode via ?embed=1.
 ============================================================================= -->
 <!DOCTYPE html>
-<html lang="en" class="">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8" />
@@ -42,14 +42,19 @@ PURPOSE
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <a href="index.html" data-auth="public">Home</a>
-      <a href="faq.html" data-auth="public">FAQs</a>
-      <a href="privacy.html" data-auth="public">Privacy</a>
-      <a href="terms.html" data-auth="public">Terms</a>
-      <a href="support.html" data-auth="public">Support</a>
+      <!-- Public (hidden to avoid flicker on private page) -->
+      <a href="index.html" data-auth="public" hidden>Home</a>
+      <a href="faq.html" data-auth="public" hidden>FAQs</a>
+      <a href="privacy.html" data-auth="public" hidden>Privacy</a>
+      <a href="terms.html" data-auth="public" hidden>Terms</a>
+      <a href="support.html" data-auth="public" hidden>Support</a>
+      <!-- Protected -->
       <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
       <a href="feed.html" data-auth="protected" hidden>Feed</a>
-      <a href="map.html" data-auth="protected" hidden>Map</a>
+      <a href="map.html" data-auth="protected" aria-current="page" hidden>Map</a>
+      <a href="friends.html" data-auth="protected" hidden>Friends</a>
+      <a href="settings.html" data-auth="protected" hidden>Settings</a>
+      <a href="chat.html" data-auth="protected" hidden>Chat</a>
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
     </nav>
   </header>
@@ -67,21 +72,24 @@ PURPOSE
   <script>
     (function () {
       const u = new URL(location.href);
-      if (u.searchParams.get('embed') === '1') {
-        document.documentElement.classList.add('is-embed');
-      }
+      if (u.searchParams.get('embed') === '1') document.documentElement.classList.add('is-embed');
     })();
   </script>
 
+  <!-- Core -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/config.js"></script>
+  <script src="scripts/sb-client.js"></script>
+  <script src="scripts/page-flags.js"></script>
   <script src="scripts/auth-guard.js"></script>
 
+  <!-- Map libs -->
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.js"></script>
   <script
     src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.min.js"></script>
   <script src="https://unpkg.com/@mapbox/mapbox-gl-language@1.0.1/dist/mapbox-gl-language.js"></script>
 
+  <!-- UI + page -->
   <script src="scripts/map.js"></script>
   <script src="scripts/ui.js" defer></script>
   <script src="scripts/theme-toggle.js" defer></script>

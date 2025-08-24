@@ -6,6 +6,7 @@ PURPOSE
 ============================================================================= -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -13,6 +14,7 @@ PURPOSE
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
 </head>
+
 <body data-require-auth="true">
   <header class="topnav">
     <a href="dashboard.html" class="nav-left" style="text-decoration:none;">
@@ -20,14 +22,19 @@ PURPOSE
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <a href="index.html"  data-auth="public">Home</a>
-      <a href="faq.html"    data-auth="public">FAQs</a>
-      <a href="privacy.html"data-auth="public">Privacy</a>
-      <a href="terms.html"  data-auth="public">Terms</a>
-      <a href="support.html"data-auth="public">Support</a>
+      <!-- Public (hidden to avoid flicker) -->
+      <a href="index.html" data-auth="public" hidden>Home</a>
+      <a href="faq.html" data-auth="public" hidden>FAQs</a>
+      <a href="privacy.html" data-auth="public" hidden>Privacy</a>
+      <a href="terms.html" data-auth="public" hidden>Terms</a>
+      <a href="support.html" data-auth="public" hidden>Support</a>
+      <!-- Protected -->
       <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
-      <a href="feed.html"      data-auth="protected" hidden>Feed</a>
-      <a href="map.html"       data-auth="protected" hidden>Map</a>
+      <a href="feed.html" data-auth="protected" hidden>Feed</a>
+      <a href="map.html" data-auth="protected" hidden>Map</a>
+      <a href="friends.html" data-auth="protected" aria-current="page" hidden>Friends</a>
+      <a href="settings.html" data-auth="protected" hidden>Settings</a>
+      <a href="chat.html" data-auth="protected" hidden>Chat</a>
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
     </nav>
   </header>
@@ -54,31 +61,42 @@ PURPOSE
     </section>
   </main>
 
-  <footer><p>&copy; 2025 Pinged. All rights reserved.</p></footer>
+  <footer>
+    <p>&copy; 2025 Pinged. All rights reserved.</p>
+  </footer>
 
+  <!-- Core -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/config.js"></script>
+  <script src="scripts/sb-client.js"></script>
+  <script src="scripts/page-flags.js"></script>
   <script src="scripts/auth-guard.js"></script>
+
+  <!-- UI -->
   <script src="scripts/ui.js" defer></script>
   <script src="scripts/theme-toggle.js" defer></script>
+
   <script>
+    window.addEventListener('pinged:auth', (e) => { window.__currentUser = e.detail?.user || null; });
+
     // Placeholder local-only friend list
-    const KEY='pinged_demo_friends_v1';
-    const $=(s,r=document)=>r.querySelector(s); const list=$('#friends-list');
-    function load(){ try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return[]} }
-    function save(x){ try{localStorage.setItem(KEY, JSON.stringify(x))}catch{} }
-    function render(){
-      const items=load();
-      list.innerHTML = items.length ? items.map(e=>`<li>${e}</li>`).join('') : '<li class="muted">No friends yet.</li>';
+    const KEY = 'pinged_demo_friends_v1';
+    const $ = (s, r = document) => r.querySelector(s); const list = $('#friends-list');
+    function load() { try { return JSON.parse(localStorage.getItem(KEY) || '[]') } catch { return [] } }
+    function save(x) { try { localStorage.setItem(KEY, JSON.stringify(x)) } catch { } }
+    function render() {
+      const items = load();
+      list.innerHTML = items.length ? items.map(e => `<li>${e}</li>`).join('') : '<li class="muted">No friends yet.</li>';
     }
-    document.getElementById('invite-btn').addEventListener('click', ()=>{
-      const v = String(document.getElementById('invite-email').value||'').trim();
-      if(!v) return;
-      const items=load(); items.push(v); save(items); render();
+    document.getElementById('invite-btn').addEventListener('click', () => {
+      const v = String(document.getElementById('invite-email').value || '').trim();
+      if (!v) return;
+      const items = load(); items.push(v); save(items); render();
       window.pingedUI?.showToast?.('Invite queued');
-      document.getElementById('invite-email').value='';
+      document.getElementById('invite-email').value = '';
     });
     document.addEventListener('DOMContentLoaded', render);
   </script>
 </body>
+
 </html>
