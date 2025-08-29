@@ -1,0 +1,53 @@
+<!--
+  reset.html
+  PURPOSE
+  - Handles Supabase password recovery flow.
+  - When user clicks the email link, Supabase redirects here with a recovery access token.
+  - This page shows a "Set new password" form and calls auth.updateUser({ password }).
+
+  REQUIREMENTS
+  - scripts/config.js contains your real Supabase URL and anon key.
+  - sb-client.js uses detectSessionInUrl:true (already set).
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Set a new password</title>
+  <link rel="stylesheet" href="styles/style.css" />
+  <style>
+    body{background:#0b0c10;color:#e6e6e6}
+    .wrap{max-width:520px;margin:10vh auto;padding:20px;border:1px solid #1f1f1f;border-radius:12px;background:#0f1216}
+    label{display:block;margin:.6rem 0 .2rem}
+    input{width:100%;padding:.7rem;border-radius:10px;border:1px solid #333;background:#12161d;color:#fff}
+    button{margin-top:12px;padding:.7rem 1rem;border-radius:10px;border:1px solid #334;background:#1a2030;color:#fff;cursor:pointer}
+    .muted{color:#9aa}
+    .err{color:#ff9ea1}
+    .ok{color:#9effb4}
+  </style>
+</head>
+<body data-public-only="true">
+  <main class="wrap">
+    <h1>Set a new password</h1>
+    <p class="muted" id="hint">Checking recovery link…</p>
+
+    <form id="reset-form" hidden>
+      <label for="pw1">New password</label>
+      <input id="pw1" type="password" autocomplete="new-password" />
+      <label for="pw2">Confirm password</label>
+      <input id="pw2" type="password" autocomplete="new-password" />
+      <button id="go" type="submit">Update password</button>
+      <p id="msg" class="muted" role="status"></p>
+    </form>
+  </main>
+
+  <!-- Core scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/sb-client.js"></script>
+  <script src="scripts/page-flags.js"></script>
+  <script src="scripts/auth-guard.js"></script>
+  <script src="scripts/reset.js"></script>
+</body>
+</html>

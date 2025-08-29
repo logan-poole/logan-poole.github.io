@@ -127,14 +127,19 @@
 
   <!-- Auth modals (shared) -->
   <div id="auth-overlay" class="auth-overlay" aria-hidden="true">
+    <!-- Sign In -->
     <section id="modal-signin" class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="si-title" hidden>
       <header>
-        <h3 id="si-title">Sign in</h3><button class="auth-close" data-auth-close aria-label="Close">✕</button>
+        <h3 id="si-title">Sign in</h3>
+        <button class="auth-close" data-auth-close aria-label="Close">✕</button>
       </header>
+
       <form id="signin-form" novalidate>
         <p class="auth-sub">Sign in or create an account.</p>
+
         <label for="si-email">Email</label>
         <input id="si-email" type="email" inputmode="email" autocomplete="username" required />
+
         <label for="si-password">Password</label>
         <div class="input-wrap">
           <input id="si-password" type="password" autocomplete="current-password" required />
@@ -145,7 +150,10 @@
             </svg>
           </button>
         </div>
-        <div class="auth-error" id="si-msg" role="alert" hidden></div>
+
+        <!-- Inline error container (auth-modals.js will also auto-inject if missing) -->
+        <div class="auth-error" id="si-msg" role="alert" aria-live="polite" hidden></div>
+
         <div class="auth-actions">
           <button id="si-btn" class="primary" type="submit">Sign in</button>
           <button class="btn" type="button" data-auth-open="signup">Sign up</button>
@@ -155,14 +163,17 @@
       </form>
     </section>
 
+    <!-- Sign Up -->
     <section id="modal-signup" class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="su-title" hidden>
       <header>
-        <h3 id="su-title">Create your account</h3><button class="auth-close" data-auth-close
-          aria-label="Close">✕</button>
+        <h3 id="su-title">Create your account</h3>
+        <button class="auth-close" data-auth-close aria-label="Close">✕</button>
       </header>
+
       <form id="signup-form" novalidate>
         <label for="su-email">Email</label>
         <input id="su-email" type="email" inputmode="email" autocomplete="username" required />
+
         <label for="su-password">Password</label>
         <div class="input-wrap">
           <input id="su-password" type="password" autocomplete="new-password" minlength="6" required />
@@ -173,12 +184,26 @@
             </svg>
           </button>
         </div>
-        <div class="auth-error" id="su-msg" role="alert" hidden></div>
+
+        <!-- Optional avatar picker (uploaded after SIGNED_IN) -->
+        <div class="field">
+          <label for="su-avatar">Profile picture (optional)</label>
+          <input id="su-avatar" type="file" accept="image/*" />
+          <small class="muted">If email confirmation is required, finish the upload in Settings after you sign
+            in.</small>
+        </div>
+
+        <!-- Inline error + hint containers -->
+        <div class="auth-error" id="su-msg" role="alert" aria-live="polite" hidden></div>
+
         <div class="auth-actions">
           <button id="su-btn" class="primary" type="submit">Create account</button>
           <button class="btn" type="button" data-auth-open="signin">I have an account</button>
+          <!-- Resend verification is hidden until a sign-up attempt succeeds -->
+          <button id="su-resend" class="btn ghost" type="button" hidden>Resend verification email</button>
         </div>
-        <p class="auth-hint" id="su-hint"></p>
+
+        <p class="auth-hint" id="su-hint" aria-live="polite"></p>
       </form>
     </section>
   </div>

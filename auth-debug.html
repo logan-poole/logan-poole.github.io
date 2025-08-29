@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Auth Debug</title>
+  <style>
+    body{font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;color:#eee;background:#0b0c10;padding:12px}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    input,button{padding:8px;border-radius:8px;border:1px solid #333;background:#12161d;color:#fff}
+    button{cursor:pointer}
+    pre{white-space:pre-wrap;background:#0f1216;border:1px solid #1e1e1e;padding:12px;border-radius:10px}
+    .ok{color:#8f8}
+    .bad{color:#f88}
+  </style>
+</head>
+<body>
+  <h1>Supabase Auth Debug</h1>
+
+  <div class="row">
+    <button id="btnPing">Ping client</button>
+    <button id="btnSession">Get session</button>
+    <button id="btnUser">Get user</button>
+    <button id="btnSignOut">Sign out</button>
+  </div>
+
+  <h3>Sign In</h3>
+  <div class="row">
+    <input id="si-email" placeholder="email" size="28" />
+    <input id="si-password" placeholder="password" type="password" size="18" />
+    <button id="si-go">Sign in</button>
+    <button id="si-magic">Send magic link</button>
+  </div>
+
+  <h3>Sign Up</h3>
+  <div class="row">
+    <input id="su-email" placeholder="email" size="28" />
+    <input id="su-password" placeholder="password (min 6)" type="password" size="18" />
+    <button id="su-go">Sign up</button>
+  </div>
+
+  <h3>Events & Results</h3>
+  <pre id="out">(waiting)</pre>
+
+  <!-- core -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/sb-client.js"></script>
+
+  <script src="scripts/auth-debug.js"></script>
+</body>
+</html>

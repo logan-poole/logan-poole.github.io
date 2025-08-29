@@ -1,0 +1,61 @@
+<!-- wizard.html — quick QA wizard for account flows (NEW)
+     PURPOSE
+     - Create a test user, resend verification, and send a reset password link — all on one page.
+     - Handy for ticking off “create / verify / reset” in manual testing.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Account Wizard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{font:16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;background:#0b0c10;color:#e6e6e6;margin:0;padding:24px}
+    h1{margin-top:0} .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+    .card{border:1px solid #1f1f1f;background:#10141a;border-radius:12px;padding:16px}
+    label{display:block;margin:.6rem 0 .2rem}
+    input{width:100%;padding:.6rem;border-radius:10px;border:1px solid #333;background:#12161d;color:#fff}
+    button{margin-top:10px;padding:.6rem 1rem;border-radius:10px;border:1px solid #334;background:#1a2030;color:#fff;cursor:pointer}
+    p.muted{color:#9aa} p.err{color:#ff9ea1} p.ok{color:#9effb4}
+    small{color:#89a}
+  </style>
+</head>
+<body data-public-only="true">
+  <h1>Account Wizard</h1>
+  <p class="muted">This page helps you test <strong>create</strong>, <strong>verify</strong>, and <strong>reset password</strong> flows.</p>
+
+  <div class="grid">
+    <section class="card">
+      <h2>1) Create account</h2>
+      <label>Email</label><input id="w-su-email" type="email" autocomplete="email" />
+      <label>Password</label><input id="w-su-pw" type="password" autocomplete="new-password" />
+      <button id="w-su-btn">Create & send verification</button>
+      <p id="w-su-msg" class="muted"></p>
+      <small>Verification link will go to <code>/verify.html</code>.</small>
+    </section>
+
+    <section class="card">
+      <h2>2) Verify account</h2>
+      <p class="muted">Open the link from your inbox. If it expires, resend below.</p>
+      <label>Email</label><input id="w-v-email" type="email" autocomplete="email" />
+      <button id="w-v-btn">Resend verification</button>
+      <p id="w-v-msg" class="muted"></p>
+    </section>
+
+    <section class="card">
+      <h2>3) Reset password</h2>
+      <label>Email</label><input id="w-r-email" type="email" autocomplete="email" />
+      <button id="w-r-btn">Send reset link</button>
+      <p id="w-r-msg" class="muted"></p>
+      <small>Reset link will go to <code>/reset.html</code>.</small>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/sb-client.js"></script>
+  <script src="scripts/page-flags.js"></script>
+  <script src="scripts/auth-guard.js"></script>
+  <script src="scripts/wizard.js"></script>
+</body>
+</html>

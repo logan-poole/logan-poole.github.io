@@ -1,11 +1,17 @@
-<!-- =============================================================================
-FILE: chat.html  (FIXED)
-- Removed bad "<script src='@supabase v2'>"
-- Completed the JS submit handler
-============================================================================= -->
+<!-- chat.html
+  PURPOSE
+  - Real chat page using your Supabase RPCs with RLS enforcement.
+
+  REQUIREMENTS
+  - Replace values in scripts/config.js with your real Supabase project URL + anon key.
+  - Ensure the SQL schema/RLS/RPC setup has been run already.
+
+  USAGE
+  - Navigate to chat.html while signed in.
+  - Optionally pass ?with=<other-user-uuid> in the URL; otherwise defaults to the seeded TestUser.
+-->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -13,111 +19,64 @@ FILE: chat.html  (FIXED)
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
   <style>
-    .chat-wrap {
-      max-width: 960px;
-      margin: 0 auto;
-    }
-
-    .chat-log {
-      height: 50vh;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 12px;
-      overflow: auto;
-      background: var(--card-bg);
-    }
-
-    .chat-input {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px;
-      margin-top: 8px;
-    }
+    body { background: var(--bg, #0b0c10); color: var(--fg, #e6e6e6); }
+    .container { max-width: 900px; margin: 24px auto; padding: 0 12px; }
+    .chat-log { min-height: 50vh; max-height: 62vh; overflow: auto; padding: 12px; border: 1px solid #1f1f1f; border-radius: 10px; background:#0e1116; }
+    .chat-input { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 8px; }
+    .msg { margin: .45rem 0; line-height: 1.45; }
+    .mine { text-align: right; }
+    .muted { color:#9aa; font-size:.85rem; }
+    header.topnav { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid #1f1f1f; }
+    .nav-right a, .nav-right span { margin-left: 10px; }
   </style>
 </head>
-
-<body data-require-auth="true">
+<body>
   <header class="topnav">
     <a href="dashboard.html" class="nav-left" style="text-decoration:none;">
       <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <!-- Public (hidden to avoid flicker) -->
       <a href="index.html" data-auth="public" hidden>Home</a>
       <a href="faq.html" data-auth="public" hidden>FAQs</a>
       <a href="privacy.html" data-auth="public" hidden>Privacy</a>
       <a href="terms.html" data-auth="public" hidden>Terms</a>
       <a href="support.html" data-auth="public" hidden>Support</a>
-      <!-- Protected -->
+
       <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
       <a href="feed.html" data-auth="protected" hidden>Feed</a>
       <a href="map.html" data-auth="protected" hidden>Map</a>
       <a href="friends.html" data-auth="protected" hidden>Friends</a>
       <a href="settings.html" data-auth="protected" hidden>Settings</a>
       <a href="chat.html" data-auth="protected" aria-current="page" hidden>Chat</a>
+      <span id="whoami" class="muted" data-auth="protected" hidden></span>
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
     </nav>
   </header>
 
-  <main class="content container chat-wrap">
+  <main class="container" data-require-auth="true">
     <p><a href="dashboard.html">← Back to Dashboard</a></p>
     <h1 class="page-title">Chat</h1>
 
-    <div id="chat-log" class="chat-log"></div>
+    <div id="chat-log" class="chat-log" aria-live="polite"></div>
     <form id="chat-form" class="chat-input">
       <input id="chat-text" type="text" placeholder="Type a message…" autocomplete="off" />
       <button class="primary" type="submit">Send</button>
     </form>
   </main>
 
-  <footer>
+  <footer class="container">
     <p>&copy; 2025 Pinged. All rights reserved.</p>
   </footer>
 
-  <!-- Core (order matters) -->
+  <!-- Core scripts (order matters) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/config.js"></script>
   <script src="scripts/sb-client.js"></script>
   <script src="scripts/page-flags.js"></script>
   <script src="scripts/auth-guard.js"></script>
-
-  <!-- UI -->
-  <script src="scripts/ui.js" defer></script>
-  <script src="scripts/theme-toggle.js" defer></script>
-
-  <script>
-    window.addEventListener('pinged:auth', (e) => { window.__currentUser = e.detail?.user || null; });
-
-    // Local-only demo chat (not realtime)
-    const KEY = 'pinged_demo_chat_v1';
-    const $ = (s, r = document) => r.querySelector(s);
-    const log = $('#chat-log'), form = $('#chat-form'), txt = $('#chat-text');
-
-    function load() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } }
-    function save(x) { try { localStorage.setItem(KEY, JSON.stringify(x)); } catch { } }
-
-    function render() {
-      log.innerHTML = '';
-      const msgs = load();
-      for (const m of msgs) {
-        const p = document.createElement('p');
-        p.innerHTML = `<strong>${m.author || 'You'}:</strong> ${m.text} <span class="muted" style="font-size:.8em">(${new Date(m.ts).toLocaleTimeString()})</span>`;
-        log.appendChild(p);
-      }
-      log.scrollTop = log.scrollHeight;
-    }
-
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const t = (txt.value || '').trim(); if (!t) return;
-      const u = window.__currentUser;
-      const msgs = load(); msgs.push({ text: t, ts: Date.now(), author: u?.email || 'You' });
-      save(msgs); txt.value = ''; render();
-    });
-
-    document.addEventListener('DOMContentLoaded', render);
-  </script>
+  <script src="scripts/auth-modals.js"></script>
+  <script src="scripts/chat.js"></script>
+  <script defer src="scripts/theme-toggle.js"></script>
 </body>
-
 </html>

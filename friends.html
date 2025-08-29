@@ -1,9 +1,4 @@
-<!-- =============================================================================
-FILE: friends.html  (COMPLETE)
-PURPOSE
-- Private friends management placeholder page.
-- Protected via data-require-auth="true".
-============================================================================= -->
+<!-- friends.html — DB-backed Friends management (COMPLETE, drop-in) -->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -13,6 +8,48 @@ PURPOSE
   <title>Pinged — Friends</title>
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
+  <style>
+    .muted {
+      color: #9aa
+    }
+
+    .friend-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid #1f1f1f;
+      border-radius: 10px;
+      margin: 6px 0
+    }
+
+    .badge {
+      display: inline-block;
+      min-width: 16px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: #b91c1c;
+      color: #fff;
+      font-size: .75rem;
+      line-height: 16px;
+      text-align: center;
+      margin-left: 6px
+    }
+
+    .badge[hidden] {
+      display: none
+    }
+
+    .form-inline {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    .form-inline input {
+      flex: 1
+    }
+  </style>
 </head>
 
 <body data-require-auth="true">
@@ -22,7 +59,7 @@ PURPOSE
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <!-- Public (hidden to avoid flicker) -->
+      <!-- Public -->
       <a href="index.html" data-auth="public" hidden>Home</a>
       <a href="faq.html" data-auth="public" hidden>FAQs</a>
       <a href="privacy.html" data-auth="public" hidden>Privacy</a>
@@ -32,7 +69,9 @@ PURPOSE
       <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
       <a href="feed.html" data-auth="protected" hidden>Feed</a>
       <a href="map.html" data-auth="protected" hidden>Map</a>
-      <a href="friends.html" data-auth="protected" aria-current="page" hidden>Friends</a>
+      <a href="friends.html" data-auth="protected" aria-current="page" hidden>
+        Friends <span id="nav-friends-badge" class="badge" hidden>0</span>
+      </a>
       <a href="settings.html" data-auth="protected" hidden>Settings</a>
       <a href="chat.html" data-auth="protected" hidden>Chat</a>
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
@@ -42,22 +81,34 @@ PURPOSE
   <main class="content container">
     <p><a href="dashboard.html">← Back to Dashboard</a></p>
     <h1 class="page-title">Friends</h1>
+    <p id="friends-msg" class="muted"></p>
 
+    <!-- Add by username (exact match) -->
     <section class="card">
-      <div class="form-grid">
-        <div>
-          <label for="invite-email">Invite by email</label>
-          <input id="invite-email" type="email" placeholder="friend@example.com" />
-        </div>
-        <div style="display:flex;align-items:flex-end;">
-          <button id="invite-btn" class="primary" type="button">Send Invite</button>
-        </div>
-      </div>
+      <h3>Add a friend</h3>
+      <form id="friend-add-form" class="form-inline">
+        <input id="friend-username" placeholder="username or email (exact)" autocomplete="off" />
+        <button class="primary" type="submit">Send request</button>
+      </form>
+      <p class="muted" style="margin-top:6px">Tip: each user sets their username in Settings. We match exactly.</p>
     </section>
 
+    <!-- Incoming requests -->
+    <section class="card">
+      <h3>Incoming requests</h3>
+      <div id="friends-incoming"></div>
+    </section>
+
+    <!-- Outgoing requests -->
+    <section class="card">
+      <h3>Outgoing requests</h3>
+      <div id="friends-outgoing"></div>
+    </section>
+
+    <!-- Accepted friends -->
     <section class="card">
       <h3>My Friends</h3>
-      <ul id="friends-list" class="muted" style="margin-top:8px;"></ul>
+      <div id="friends-accepted"></div>
     </section>
   </main>
 
@@ -76,27 +127,10 @@ PURPOSE
   <script src="scripts/ui.js" defer></script>
   <script src="scripts/theme-toggle.js" defer></script>
 
-  <script>
-    window.addEventListener('pinged:auth', (e) => { window.__currentUser = e.detail?.user || null; });
-
-    // Placeholder local-only friend list
-    const KEY = 'pinged_demo_friends_v1';
-    const $ = (s, r = document) => r.querySelector(s); const list = $('#friends-list');
-    function load() { try { return JSON.parse(localStorage.getItem(KEY) || '[]') } catch { return [] } }
-    function save(x) { try { localStorage.setItem(KEY, JSON.stringify(x)) } catch { } }
-    function render() {
-      const items = load();
-      list.innerHTML = items.length ? items.map(e => `<li>${e}</li>`).join('') : '<li class="muted">No friends yet.</li>';
-    }
-    document.getElementById('invite-btn').addEventListener('click', () => {
-      const v = String(document.getElementById('invite-email').value || '').trim();
-      if (!v) return;
-      const items = load(); items.push(v); save(items); render();
-      window.pingedUI?.showToast?.('Invite queued');
-      document.getElementById('invite-email').value = '';
-    });
-    document.addEventListener('DOMContentLoaded', render);
-  </script>
+  <!-- Friends (DB-backed) -->
+  <script src="scripts/friends.js" defer></script>
+  <!-- Optional: badge on ALL pages; include this file site-wide if you want the red dot -->
+  <script src="scripts/friends-badge.js" defer></script>
 </body>
 
 </html>

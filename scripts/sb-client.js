@@ -1,52 +1,64 @@
-
+/* scripts/sb-client.js
+   PURPOSE
+   - Create ONE Supabase v2 client and expose:
+       getSB(): Supabase client instance (or null if misconfigured)
+       hasSB(): boolean
+   SAFETY
+   - If config is missing, logs once and returns null (no spammy retries).
+   REQUIREMENTS
+   - <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> is loaded first.
+   - scripts/config.js set window.PINGED_CONFIG with real values.
+*/
 (function () {
-  let warned = false;
-
-  function warnOnce(msg){ if(!warned){ console.warn(msg); warned = true; } }
+  let warnedMissing = false;
+  let warnedUmd = false;
 
   function readConfig() {
-    // Accept either namespace for backwards-compat
-    const a = window.PINGED_CONFIG || window.PINGED || {};
-    return {
-      SUPABASE_URL: a.SUPABASE_URL,
-      SUPABASE_ANON_KEY: a.SUPABASE_ANON_KEY
-    };
+    const c = window.PINGED_CONFIG || window.PINGED || {};
+    return { url: c.SUPABASE_URL || "", key: c.SUPABASE_ANON_KEY || "" };
   }
 
-  function makeClient() {
-    const cfg = readConfig();
-    const NS = window.supabase;
-    if (!NS?.createClient) {
-      warnOnce('[sb-client] supabase-js not loaded yet (check CDN script order).');
+  function create() {
+    const { url, key } = readConfig();
+    if (!url || !key) {
+      if (!warnedMissing) {
+        console.warn("[sb-client] Missing SUPABASE_URL or SUPABASE_ANON_KEY (check scripts/config.js).");
+        warnedMissing = true;
+      }
       return null;
     }
-    if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY) {
-      warnOnce('[sb-client] Missing SUPABASE_URL or SUPABASE_ANON_KEY in scripts/config.js');
+    if (!window.supabase?.createClient) {
+      if (!warnedUmd) {
+        console.warn("[sb-client] supabase-js UMD not loaded yet (check script order in HTML).");
+        warnedUmd = true;
+      }
       return null;
     }
     try {
-      return NS.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      const client = window.supabase.createClient(url, key, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+        global: { headers: { "x-pinged-client": "web" } }
       });
+      try { window.dispatchEvent(new CustomEvent("pinged:sb", { detail: { ok: true } })); } catch {}
+      return client;
     } catch (e) {
-      console.warn('[sb-client] createClient failed:', e);
+      console.error("[sb-client] createClient failed:", e);
       return null;
     }
   }
 
+  // Public API
   window.getSB = function getSB() {
     if (window.__sb) return window.__sb;
-    window.__sb = makeClient();
-    if (window.__sb) {
-      try { window.dispatchEvent(new CustomEvent('pinged:sb', { detail: { ok: true } })); } catch {}
-    }
+    window.__sb = create();
     return window.__sb;
   };
 
   window.hasSB = function hasSB() { return !!window.getSB(); };
 
-  // Eagerly build the client so auth-guard has it immediately
-  document.addEventListener('DOMContentLoaded', () => {
-    if (!window.hasSB()) console.warn('[sb-client] Not initialized. Check load order & config.');
+  // On DOM ready, try once and hint if not configured
+  document.addEventListener("DOMContentLoaded", () => {
+    const sb = window.getSB();
+    if (!sb) console.warn("[sb-client] Not initialized. Ensure config values and script order are correct.");
   });
 })();

@@ -1,13 +1,5 @@
-<!-- =============================================================================
-FILE: settings.html  (COMPLETE)
-PURPOSE
-- Private settings page for profile updates (username, display name, website, bio, visibility).
-- Uses Supabase directly, matching the logic from your prior modal.
-- Protected via data-require-auth="true".
-============================================================================= -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -23,19 +15,12 @@ PURPOSE
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <!-- Public (hidden on private) -->
-      <a href="index.html" data-auth="public" hidden>Home</a>
-      <a href="faq.html" data-auth="public" hidden>FAQs</a>
-      <a href="privacy.html" data-auth="public" hidden>Privacy</a>
-      <a href="terms.html" data-auth="public" hidden>Terms</a>
-      <a href="support.html" data-auth="public" hidden>Support</a>
-      <!-- Protected -->
       <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
       <a href="feed.html" data-auth="protected" hidden>Feed</a>
       <a href="map.html" data-auth="protected" hidden>Map</a>
-      <a href="settings.html" data-auth="protected" aria-current="page" hidden>Settings</a>
       <a href="friends.html" data-auth="protected" hidden>Friends</a>
       <a href="chat.html" data-auth="protected" hidden>Chat</a>
+      <a href="settings.html" data-auth="protected" aria-current="page" hidden>Settings</a>
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
     </nav>
   </header>
@@ -44,13 +29,31 @@ PURPOSE
     <p><a href="dashboard.html">← Back to Dashboard</a></p>
     <h1 class="page-title">Settings</h1>
 
+    <section class="card">
+      <h3 style="color: var(--accent); margin-top:0;">Profile picture</h3>
+      <div class="form-grid" style="align-items:center;">
+        <div style="display:flex; gap:12px; align-items:center;">
+          <img id="avatar-preview" alt="Avatar preview"
+               style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid var(--border);" />
+          <div>
+            <input id="avatar-file" type="file" accept="image/*" />
+            <div style="margin-top:8px; display:flex; gap:8px;">
+              <button id="avatar-upload" class="primary" type="button">Upload</button>
+              <button id="avatar-remove" class="danger" type="button">Remove</button>
+            </div>
+            <small id="avatar-hint" class="muted">Pick an image and Upload.</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="card" id="settings-card">
       <div class="form-grid">
-        <div><label>Username</label><input id="username" type="text"></div>
-        <div><label>Display name</label><input id="display_name" type="text"></div>
-        <div><label>Website</label><input id="website" type="text" placeholder="https://example.com"></div>
+        <div><label for="username">Username</label><input id="username" type="text" /></div>
+        <div><label for="display_name">Display name</label><input id="display_name" type="text" /></div>
+        <div><label for="website">Website</label><input id="website" type="text" placeholder="https://example.com" /></div>
         <div>
-          <label>Visibility</label>
+          <label for="visibility">Visibility</label>
           <select id="visibility">
             <option value="public">public</option>
             <option value="friends">friends</option>
@@ -58,7 +61,11 @@ PURPOSE
           </select>
         </div>
         <div style="grid-column:1 / -1">
-          <label>Bio</label><textarea id="bio" placeholder="A short bio…"></textarea>
+          <label for="bio">Bio</label><textarea id="bio" placeholder="A short bio…"></textarea>
+        </div>
+        <div style="grid-column:1 / -1; display:flex; align-items:center; gap:10px;">
+          <input id="findable_by_email" type="checkbox" />
+          <label for="findable_by_email" style="margin:0;">Allow friends to find me by email</label>
         </div>
       </div>
       <div class="btns" style="margin-top:10px;">
@@ -83,49 +90,186 @@ PURPOSE
   <script src="scripts/theme-toggle.js" defer></script>
 
   <script>
-    // Load/save profile similar to the modal version
-    const sb = window.__sb;
+    // ========= Settings logic (uses PROFILE.TABLE / PROFILE.ID_COLUMN / PROFILE.AVATAR_COLUMN) =========
+    const sb  = window.__sb;
+    const CFG = window.PINGED_CONFIG || {};
+    const PROFILE_TABLE = CFG?.PROFILE?.TABLE || 'profiles';
+    const ID_COL        = CFG?.PROFILE?.ID_COLUMN || 'id';                // <— key change
+    const AVATAR_COLUMN = CFG?.PROFILE?.AVATAR_COLUMN || 'avatar_url';
+
+    const KNOWN_COLS = new Set(
+      (CFG?.PROFILE?.COLUMNS) ||
+      ['username','display_name','website','bio','visibility','findable_by_email', AVATAR_COLUMN]
+    );
+
     const $ = (id) => document.getElementById(id);
+    const toast = (m) => (window.pingedUI?.showToast?.(m), undefined) || alert(m);
+
+    // Inline placeholder to avoid 404s
+    const PLACEHOLDER_DATA = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128">
+         <rect width="100%" height="100%" fill="#e5e7eb"/>
+         <circle cx="64" cy="50" r="24" fill="#cbd5e1"/>
+         <rect x="22" y="86" width="84" height="26" rx="13" fill="#cbd5e1"/>
+       </svg>`
+    );
+
+    function setAvatarPreview(url) {
+      const img = $('avatar-preview');
+      img.onerror = () => { img.onerror = null; img.src = PLACEHOLDER_DATA; };
+      img.src = url || PLACEHOLDER_DATA;
+    }
+    function publicUrlFromKey(key) {
+      if (!key) return PLACEHOLDER_DATA;
+      return `${CFG.SUPABASE_URL}/storage/v1/object/public/avatars/${encodeURIComponent(key)}`;
+    }
+
+    function extractMissingColumn(errMsg) {
+      const s = String(errMsg || '');
+      let m = s.match(/column "([^"]+)" of relation ".*" does not exist/i);
+      if (m) return m[1];
+      m = s.match(/could not find the '([^']+)' column/i);
+      return m ? m[1] : null;
+    }
+
+    async function safeUpsert(table, payload) {
+      // ensure we write the correct PK column
+      const withId = { ...payload };
+      if (ID_COL !== 'id') { withId[ID_COL] = withId.id; delete withId.id; }
+
+      // prune unexpected columns to dodge schema-cache errors
+      const pruned = {};
+      for (const k of Object.keys(withId)) {
+        if (k === ID_COL || KNOWN_COLS.has(k)) pruned[k] = withId[k];
+      }
+
+      let data, error;
+      while (true) {
+        const r = await sb.from(table).upsert(pruned, { onConflict: ID_COL }).select(ID_COL).single();
+        data = r.data; error = r.error;
+        if (!error) break;
+        const miss = extractMissingColumn(error.message);
+        if (!miss || !(miss in pruned)) break;
+        delete pruned[miss];
+        console.warn('[settings] stripped missing column then retry:', miss);
+      }
+      return { data, error };
+    }
 
     async function loadProfile() {
       const { data: { user } } = await sb.auth.getUser();
       if (!user) return;
-      const meta = user.user_metadata || {};
-      // try db
-      let profile = null;
-      try {
-        const { data, error } = await sb.from('users')
-          .select('id,username,display_name,profile_pic,visibility,website,bio')
-          .eq('id', user.id).maybeSingle();
-        if (!error && data) profile = data;
-      } catch { }
 
-      $('username').value = profile?.username ?? (meta.username || '');
-      $('display_name').value = profile?.display_name ?? (meta.display_name || '');
-      $('website').value = profile?.website ?? (meta.website || '');
-      $('bio').value = profile?.bio ?? (meta.bio || '');
-      $('visibility').value = profile?.visibility ?? (meta.visibility || 'friends');
+      // select dynamic id column + avatar column
+      const cols = [ID_COL,'username','display_name','website','bio','visibility','findable_by_email', AVATAR_COLUMN]
+        .filter(Boolean).join(',');
+
+      const r = await sb.from(PROFILE_TABLE).select(cols).eq(ID_COL, user.id).maybeSingle();
+      if (r.error && r.status !== 406 && r.status !== 404) {
+        console.error('[settings] load profile error:', r.error);
+      }
+      const row = r.data || null;
+
+      const meta = user.user_metadata || {};
+      $('username').value            = row?.username ?? meta.username ?? '';
+      $('display_name').value        = row?.display_name ?? meta.display_name ?? '';
+      $('website').value             = row?.website ?? meta.website ?? '';
+      $('bio').value                 = row?.bio ?? meta.bio ?? '';
+      $('visibility').value          = row?.visibility ?? meta.visibility ?? 'friends';
+      $('findable_by_email').checked = !!(row?.findable_by_email ?? meta.findable_by_email);
+
+      const keyOrUrl = row?.[AVATAR_COLUMN] ?? meta[AVATAR_COLUMN];
+      setAvatarPreview(
+        keyOrUrl && !/^https?:\/\//i.test(keyOrUrl) ? publicUrlFromKey(keyOrUrl) : (keyOrUrl || PLACEHOLDER_DATA)
+      );
     }
 
     async function saveProfile() {
       const { data: { user } } = await sb.auth.getUser();
-      if (!user) return alert('Not signed in');
+      if (!user) return toast('Not signed in.');
+
       const payload = {
-        id: user.id,
+        id: user.id, // safeUpsert will remap to ID_COL if needed
         username: $('username').value.trim() || null,
         display_name: $('display_name').value.trim() || null,
         website: $('website').value.trim() || null,
         bio: $('bio').value.trim() || null,
-        visibility: $('visibility').value || 'friends'
+        visibility: $('visibility').value || null,
+        findable_by_email: $('findable_by_email').checked
       };
-      try { await sb.from('users').upsert(payload, { onConflict: 'id' }); } catch { }
-      await sb.auth.updateUser({ data: payload });
-      window.pingedUI?.showToast?.('Saved');
+
+      const { error } = await safeUpsert(PROFILE_TABLE, payload);
+      if (error) {
+        console.error('[settings] upsert error:', error);
+        return toast(error.message || 'Could not save profile.');
+      }
+
+      // Mirror to auth metadata (best-effort)
+      try {
+        const meta = { ...payload };
+        delete meta.id;
+        await sb.auth.updateUser({ data: meta });
+      } catch (_) {}
+
+      toast('Saved');
+      await loadProfile();
     }
 
-    document.addEventListener('DOMContentLoaded', loadProfile);
-    document.getElementById('save-btn').addEventListener('click', saveProfile);
+    async function uploadAvatar() {
+      const file = $('avatar-file').files?.[0];
+      if (!file) return toast('Choose an image first.');
+
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) return toast('Not signed in.');
+
+      const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `users/${user.id}/avatar_${Date.now()}.${ext}`;
+
+      const bucket = sb.storage.from('avatars');
+      const { error: upErr } = await bucket.upload(path, file, { upsert: true, cacheControl: '3600' });
+      if (upErr) {
+        console.error('[settings] avatar upload error:', upErr);
+        return toast(upErr.message || 'Could not upload avatar. Check Storage RLS.');
+      }
+
+      const valueToStore = (AVATAR_COLUMN === 'avatar_url') ? publicUrlFromKey(path) : path;
+      const { error: dbErr } = await sb.from(PROFILE_TABLE)
+        .update({ [AVATAR_COLUMN]: valueToStore })
+        .eq(ID_COL, user.id);
+
+      if (dbErr) {
+        console.error('[settings] avatar db update error:', dbErr);
+        return toast(dbErr.message || 'Avatar saved but DB update failed.');
+      }
+
+      setAvatarPreview(publicUrlFromKey(path));
+      $('avatar-file').value = '';
+      $('avatar-hint').textContent = 'Avatar updated.';
+      toast('Avatar updated');
+    }
+
+    async function removeAvatar() {
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) return toast('Not signed in.');
+      const { error } = await sb.from(PROFILE_TABLE).update({ [AVATAR_COLUMN]: null }).eq(ID_COL, user.id);
+      if (error) {
+        console.error('[settings] remove avatar error:', error);
+        return toast(error.message || 'Could not remove avatar.');
+      }
+      setAvatarPreview(PLACEHOLDER_DATA);
+      toast('Avatar removed');
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      setAvatarPreview(PLACEHOLDER_DATA);
+      await loadProfile();
+    });
+
+    $('save-btn').addEventListener('click', (e) => { e.preventDefault(); saveProfile(); });
+    $('avatar-upload').addEventListener('click', (e) => { e.preventDefault(); uploadAvatar(); });
+    $('avatar-remove').addEventListener('click', (e) => { e.preventDefault(); removeAvatar(); });
+
+    sb.auth.onAuthStateChange((_e, sess) => { if (sess?.user) loadProfile(); });
   </script>
 </body>
-
 </html>

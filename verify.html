@@ -1,0 +1,54 @@
+<!-- verify.html — handles email confirmation links (NEW)
+     PURPOSE
+     - When user clicks the verification link from Supabase, it lands here (with #type=signup & access_token).
+     - This page hydrates the session and shows success, or offers “resend verification” on error/expiry.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Verify your account</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles/style.css" />
+  <style>
+    body{background:#0b0c10;color:#e6e6e6}
+    .wrap{max-width:520px;margin:10vh auto;padding:20px;border:1px solid #1f1f1f;border-radius:12px;background:#0f1216}
+    label{display:block;margin:.6rem 0 .2rem}
+    input{width:100%;padding:.7rem;border-radius:10px;border:1px solid #333;background:#12161d;color:#fff}
+    button{margin-top:12px;padding:.7rem 1rem;border-radius:10px;border:1px solid #334;background:#1a2030;color:#fff;cursor:pointer}
+    .muted{color:#9aa}.err{color:#ff9ea1}.ok{color:#9effb4}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+  </style>
+</head>
+<body data-public-only="true">
+  <main class="wrap">
+    <h1>Email verification</h1>
+    <p id="hint" class="muted">Checking your link…</p>
+
+    <div id="success" hidden>
+      <p class="ok">Your email is verified and you’re signed in.</p>
+      <div class="actions">
+        <button id="go-dash">Go to dashboard</button>
+        <button id="sign-out">Sign out</button>
+      </div>
+    </div>
+
+    <div id="errorbox" hidden>
+      <p id="errmsg" class="err"></p>
+      <label for="v-email">Resend verification to this email</label>
+      <input id="v-email" type="email" autocomplete="email" />
+      <div class="actions">
+        <button id="v-resend">Resend verification</button>
+      </div>
+      <p id="v-msg" class="muted"></p>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/sb-client.js"></script>
+  <script src="scripts/page-flags.js"></script>
+  <script src="scripts/auth-guard.js"></script>
+  <script src="scripts/verify.js"></script>
+</body>
+</html>
