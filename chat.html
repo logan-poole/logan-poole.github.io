@@ -1,82 +1,123 @@
-<!-- chat.html
-  PURPOSE
-  - Real chat page using your Supabase RPCs with RLS enforcement.
+<!--
+FILE: pinged/chat.html
+WHAT’S NEW (please read first)
+- Keeps your layout but upgrades the composer to a <textarea> for better, multi-line messages.
+- Wires up exactly the IDs/classes used by chat.js and chat.css.
+- (Optional) You can override Storage bucket names by uncommenting window.PINGED_MEDIA_BUCKETS.
 
-  REQUIREMENTS
-  - Replace values in scripts/config.js with your real Supabase project URL + anon key.
-  - Ensure the SQL schema/RLS/RPC setup has been run already.
-
-  USAGE
-  - Navigate to chat.html while signed in.
-  - Optionally pass ?with=<other-user-uuid> in the URL; otherwise defaults to the seeded TestUser.
+Heads-up
+- If you still see “Bucket not found”, the buckets don’t exist yet. Create ‘dm-media’ and/or ‘chat-media’
+  in Supabase Storage (or override the names below and in SQL).
 -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pinged — Chat</title>
+
+  <!-- Global + page-specific styles -->
+  <link rel="icon" href="assets/favicon.ico" />
   <link rel="stylesheet" href="styles/style.css" />
-  <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
-  <style>
-    body { background: var(--bg, #0b0c10); color: var(--fg, #e6e6e6); }
-    .container { max-width: 900px; margin: 24px auto; padding: 0 12px; }
-    .chat-log { min-height: 50vh; max-height: 62vh; overflow: auto; padding: 12px; border: 1px solid #1f1f1f; border-radius: 10px; background:#0e1116; }
-    .chat-input { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 8px; }
-    .msg { margin: .45rem 0; line-height: 1.45; }
-    .mine { text-align: right; }
-    .muted { color:#9aa; font-size:.85rem; }
-    header.topnav { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid #1f1f1f; }
-    .nav-right a, .nav-right span { margin-left: 10px; }
-  </style>
+  <link rel="stylesheet" href="styles/chat.css" />
 </head>
+
 <body>
+  <!-- Top Navbar -->
   <header class="topnav">
     <a href="dashboard.html" class="nav-left" style="text-decoration:none;">
       <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
+      <!-- Public (hidden to avoid flicker on private page) -->
       <a href="index.html" data-auth="public" hidden>Home</a>
       <a href="faq.html" data-auth="public" hidden>FAQs</a>
       <a href="privacy.html" data-auth="public" hidden>Privacy</a>
       <a href="terms.html" data-auth="public" hidden>Terms</a>
       <a href="support.html" data-auth="public" hidden>Support</a>
-
+      <!-- Protected -->
       <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
       <a href="feed.html" data-auth="protected" hidden>Feed</a>
-      <a href="map.html" data-auth="protected" hidden>Map</a>
+      <a href="map.html" data-auth="protected" aria-current="page" hidden>Map</a>
       <a href="friends.html" data-auth="protected" hidden>Friends</a>
       <a href="settings.html" data-auth="protected" hidden>Settings</a>
-      <a href="chat.html" data-auth="protected" aria-current="page" hidden>Chat</a>
-      <span id="whoami" class="muted" data-auth="protected" hidden></span>
+      <a href="chat.html" data-auth="protected" hidden>Chat</a>
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
     </nav>
   </header>
 
-  <main class="container" data-require-auth="true">
-    <p><a href="dashboard.html">← Back to Dashboard</a></p>
-    <h1 class="page-title">Chat</h1>
+  <!-- Two-pane Chat Layout -->
+  <main class="container chat-layout" data-require-auth="true">
+    <!-- Sidebar (Friends List) -->
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <input id="friend-search" type="search" placeholder="Search friends…" />
+        <button id="new-group-btn" class="btn btn-secondary btn-sm">New Group</button>
+      </div>
+      <div id="friends-list" class="friends-list" aria-label="Friends"></div>
+    </aside>
 
-    <div id="chat-log" class="chat-log" aria-live="polite"></div>
-    <form id="chat-form" class="chat-input">
-      <input id="chat-text" type="text" placeholder="Type a message…" autocomplete="off" />
-      <button class="primary" type="submit">Send</button>
-    </form>
+    <!-- Chat Panel -->
+    <section class="chat-panel">
+      <div class="chat-header">
+        <div id="participants" class="participants"></div>
+        <div class="chat-actions">
+          <button id="add-people-btn" class="btn btn-secondary btn-sm" disabled>Add People</button>
+        </div>
+      </div>
+
+      <div id="chat-log" class="chat-log" aria-live="polite"></div>
+
+      <form id="chat-form" class="chat-composer" autocomplete="off">
+        <!-- Upgraded to textarea (multi-line, larger) -->
+        <textarea id="chat-text" rows="2" placeholder="Type a message…"></textarea>
+        <br>
+        <input id="chat-files" type="file" accept="image/*,video/*,audio/*" multiple />
+        <button class="btn btn-primary" type="submit">Send</button>
+      </form>
+    </section>
   </main>
 
+  <!-- Create Group Modal -->
+  <div id="group-modal" class="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="group-title">
+      <div class="modal-head">
+        <h3 id="group-title">Start a group chat</h3>
+        <button id="group-close" class="icon-btn" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="group-friends" class="group-friends"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="group-cancel" class="btn">Cancel</button>
+        <button id="group-create" class="btn btn-primary">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
   <footer class="container">
     <p>&copy; 2025 Pinged. All rights reserved.</p>
   </footer>
 
-  <!-- Core scripts (order matters) -->
+  <!-- Libraries + core app scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/config.js"></script>
   <script src="scripts/sb-client.js"></script>
   <script src="scripts/page-flags.js"></script>
   <script src="scripts/auth-guard.js"></script>
   <script src="scripts/auth-modals.js"></script>
+
+  <!-- Optional: override Storage bucket names (uncomment to customize) -->
+  <!-- <script>window.PINGED_MEDIA_BUCKETS = ['dm-media','chat-media'];</script> -->
+
+  <!-- Page logic -->
   <script src="scripts/chat.js"></script>
+
+  <!-- Theme toggle -->
   <script defer src="scripts/theme-toggle.js"></script>
 </body>
+
 </html>

@@ -39,6 +39,8 @@
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
         global: { headers: { "x-pinged-client": "web" } }
       });
+      // publish globally for scripts that expect window.__sb
+      window.__sb = client;
       try { window.dispatchEvent(new CustomEvent("pinged:sb", { detail: { ok: true } })); } catch {}
       return client;
     } catch (e) {

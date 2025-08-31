@@ -1,4 +1,3 @@
-
 (function () {
   const cfg = {
     // --- Supabase ---
@@ -8,12 +7,11 @@
     // --- Mapbox ---
     MAPBOX_ACCESS_TOKEN: "pk.eyJ1IjoibG9nYW5wb29sZSIsImEiOiJjbWR3ZjNmamkyNDRmMmtwenl5MW41MDZxIn0.gRso7kVTaJfJWYAA7ruRjw",
 
-  // --- Profile table mapping ---
+    // --- Profile table mapping ---
     PROFILE: {
-      TABLE: "profiles", //Table name
-      ID_COLUMN: "user_id", //User column
-      AVATAR_COLUMN: "profile_pic", //Avatar
-      
+      TABLE: "profiles",
+      ID_COLUMN: "user_id",
+      AVATAR_COLUMN: "profile_pic", // stores object key in 'avatars' bucket
       COLUMNS: [
         "username",
         "display_name",
@@ -21,8 +19,20 @@
         "bio",
         "visibility",
         "findable_by_email",
-        "profile_pic"             
+        "profile_pic"
       ]
+    },
+
+    // --- App tables (handy references) ---
+    TABLES: {
+      PROFILES: "profiles",
+      FRIENDSHIPS: "friendships",
+      POSTS: "posts",
+      BLOCKS: "blocks",
+      CONVERSATIONS: "conversations",
+      PARTICIPANTS: "conversation_participants",
+      MESSAGES: "messages",
+      LIVE_LOCATIONS: "live_locations"
     }
   };
 

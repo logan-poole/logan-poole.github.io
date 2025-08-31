@@ -6,23 +6,21 @@
   - No “friends” query gymnastics: RLS/SQL handles visibility.
   - Composer binds to: #post-text, #post-image-url, #post-submit  (no visibility field).
   - Optimistically prepends your new post, then refreshes from the DB.
-  - Uses the one Supabase client exposed by ui.js as window.__sb (does not create a client).
-  - Resubscribes to realtime INSERT/UPDATE/DELETE on posts and refreshes when changes arrive.
+  - Uses the one Supabase client exposed globally as window.__sb.
+  - Subscribes to realtime INSERT/UPDATE/DELETE on posts and refreshes on change.
 
-  REQUIREMENTS
-  - DB has table `public.posts(author_id uuid, body text, media_url text, created_at timestamptz, ...)`
-  - RLS policies from our SQL allow: SELECT own + friends’ posts; INSERT/UPDATE/DELETE own posts.
-  - Page has:
-      <div id="feed-empty"></div>
-      <div id="feed-list"></div>
-      <textarea id="post-text"></textarea>
-      <input id="post-image-url" />
-      <button id="post-submit">Post</button>
-  - window.__sb is set by your bootstrap (scripts/sb-client.js + scripts/ui.js).
+  YOUR SCHEMA
+  - public.posts(author_id uuid, text text, image_url text, visibility text, created_at timestamptz)
+  - profiles: PK user_id; avatar column is 'profile_pic' (object key in 'avatars' bucket)
 */
 
 (function (sb) {
   if (!sb) { console.error('[feed] Supabase client missing (window.__sb)'); return; }
+
+  const CFG = window.PINGED_CONFIG || {};
+  const POSTS = CFG.TABLES?.POSTS || 'posts';
+  const PROFILES = CFG.TABLES?.PROFILES || 'profiles';
+  const AVATAR_COL = CFG?.PROFILE?.AVATAR_COLUMN || 'profile_pic';
 
   // ---- DOM elements ---------------------------------------------------------
   const feedList = document.getElementById('feed-list');
@@ -31,11 +29,10 @@
   const imgEl    = document.getElementById('post-image-url');
   const btnPost  = document.getElementById('post-submit');
 
-  // ---- small helpers --------------------------------------------------------
+  // ---- helpers --------------------------------------------------------------
   const sleep = (ms)=>new Promise(r=>setTimeout(r, ms));
 
   async function ensureUser(maxMs = 4000) {
-    // If ui.js exposes a promise for initial load, wait briefly for it.
     if (window.__loadUser instanceof Promise) {
       await Promise.race([window.__loadUser, sleep(maxMs)]);
       if (window.__currentUser) return window.__currentUser;
@@ -50,9 +47,15 @@
     emptyMsg.classList.toggle('hidden', !text);
   }
 
+  function avatarUrlFromKey(key) {
+    if (!key) return 'assets/avatar-default.png';
+    return `${CFG.SUPABASE_URL}/storage/v1/object/public/avatars/${encodeURIComponent(key)}`;
+  }
+
   function postCard(row, author) {
-    const name = author?.username || author?.display_name || author?.label || 'someone';
-    const avatar = author?.avatar_url || 'assets/avatar-default.png';
+    const name = author?.display_name || author?.username || 'someone';
+    const avatarKey = author?.[AVATAR_COL] || null;
+    const avatar = avatarUrlFromKey(avatarKey);
     const when = row.created_at ? new Date(row.created_at).toLocaleString() : '';
 
     const el = document.createElement('article');
@@ -68,19 +71,19 @@
     head.style.alignItems = 'center';
     head.style.marginBottom = '8px';
     head.innerHTML = `
-      <img src="${avatar}" alt="${name} avatar" style="width:32px;height:32px;border-radius:50%;" referrerpolicy="no-referrer">
+      <img src="${avatar}" alt="${name} avatar" style="width:32px;height:32px;border-radius:50%;object-fit:cover" referrerpolicy="no-referrer">
       <div><strong>${name}</strong> <span class="muted">• ${when}</span></div>
     `;
 
     const body = document.createElement('p');
-    body.innerHTML = (row.body || '').trim().replace(/\n/g, '<br>');
+    body.innerHTML = (row.text || '').trim().replace(/\n/g, '<br>');
 
     el.appendChild(head);
     el.appendChild(body);
 
-    if (row.media_url) {
+    if (row.image_url) {
       const img = document.createElement('img');
-      img.src = row.media_url;
+      img.src = row.image_url;
       img.alt = 'attachment';
       img.loading = 'lazy';
       img.style.maxWidth = '100%';
@@ -94,13 +97,12 @@
   async function fetchAuthorMap(authorIds) {
     if (!authorIds.length) return {};
     const { data, error, status } = await sb
-      .from('profiles')
-      .select('user_id, username, display_name, avatar_url')
+      .from(PROFILES)
+      .select(`user_id, username, display_name, ${AVATAR_COL}`)
       .in('user_id', authorIds);
     if (error) {
       console.warn('[feed] fetch profiles failed:', status, error.message);
-      // fallback to minimal labels
-      return Object.fromEntries(authorIds.map(id => [id, { label: id.slice(0, 8) }]));
+      return Object.fromEntries(authorIds.map(id => [id, { username: id.slice(0, 8) }]));
     }
     const map = {};
     (data || []).forEach(p => { map[p.user_id] = p; });
@@ -119,10 +121,10 @@
 
     setEmpty('Loading…');
 
-    // RLS returns: your own + friends’ posts (and not blocked)
+    // RLS should return: your own + friends’ posts (and not blocked)
     const { data, error, status } = await sb
-      .from('posts')
-      .select('id, author_id, body, media_url, created_at')
+      .from(POSTS)
+      .select('id, author_id, text, image_url, created_at')
       .order('created_at', { ascending: false })
       .limit(50);
 
@@ -155,28 +157,27 @@
     const me = await ensureUser();
     if (!me) return alert('Please sign in to post.');
 
-    const body = (txtEl?.value || '').trim();
-    const media_url = (imgEl?.value || '').trim() || null;
-    if (!body && !media_url) return alert('Write something or add an image URL.');
+    const text = (txtEl?.value || '').trim();
+    const image_url = (imgEl?.value || '').trim() || null;
+    if (!text && !image_url) return alert('Write something or add an image URL.');
 
     // optimistic UI
     const optimistic = {
       id: 'optimistic-' + Date.now(),
       author_id: me.id,
-      body, media_url,
+      text, image_url,
       created_at: new Date().toISOString()
     };
     if (feedList) {
-      // we don’t know username immediately; display as “You”
-      const card = postCard(optimistic, { username: 'You', avatar_url: null });
+      const card = postCard(optimistic, { username: 'You', [AVATAR_COL]: null });
       feedList.prepend(card);
       setEmpty('');
     }
 
     // persist
     const { error, status } = await sb
-      .from('posts')
-      .insert({ author_id: me.id, body, media_url });
+      .from(POSTS)
+      .insert({ author_id: me.id, text, image_url, visibility: 'friends' });
 
     if (error) {
       console.error('[feed] insert post:', status, error.message);
@@ -199,7 +200,7 @@
   function subscribeRealtime() {
     try {
       sb.channel('posts-stream')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => loadFeed())
+        .on('postgres_changes', { event: '*', schema: 'public', table: POSTS }, () => loadFeed())
         .subscribe((status) => console.log('[feed] realtime status:', status));
     } catch (e) {
       console.warn('[feed] realtime subscribe failed:', e?.message || e);
@@ -208,7 +209,6 @@
 
   // ---- boot ----------------------------------------------------------------
   document.addEventListener('DOMContentLoaded', async () => {
-    console.log('[feed] boot');
     await ensureUser();
     bindComposer();
     await loadFeed();

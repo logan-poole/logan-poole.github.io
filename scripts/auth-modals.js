@@ -1,19 +1,11 @@
 /* 
   scripts/auth-modals.js — robust overlay + email-only checks + signup avatar hook (UPDATED FINAL)
   -----------------------------------------------------------------------------------------------
-  WHAT CHANGED
-  1) Sign-up confirmation targets /verify.html so users land on your verify page.
-  2) Email-only validation on Sign In / Magic Link / Reset / Resend (prevents username mistakes).
-  3) Clear Supabase error messages + automatic fallback WITHOUT redirect if allowlist blocks it.
-  4) After SIGNED_IN, if a file was chosen in #su-avatar, we upload it to `avatars/uid/...` and update profiles.avatar_url.
-  5) No navigation logic here — auth-guard handles redirects predictably.
-
-  ORDER (keep):
-    @supabase/js → scripts/config.js → scripts/sb-client.js → scripts/page-flags.js → scripts/auth-guard.js → scripts/auth-modals.js
-
-  Dashboard reminders:
-    - Auth → URL Configuration: set Site URL to your dev origin (e.g. http://127.0.0.1:5500)
-      and include http://127.0.0.1:5500/* (and/or http://localhost:5173/*) in Redirect URLs.
+  CHOICES FOR YOUR SCHEMA
+  - Avatar column is PROFILE.AVATAR_COLUMN = "profile_pic" and stores the *object key*
+    inside the `avatars` bucket (e.g., "<uid>/avatar_1735600000000.jpg"), not a full URL.
+  - Anywhere you need the public URL, compute it as:
+      `${SUPABASE_URL}/storage/v1/object/public/avatars/${encodeURIComponent(profile_pic)}`
 */
 
 (function () {
@@ -24,6 +16,10 @@
   if (!overlay) return;
 
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const CFG = window.PINGED_CONFIG || {};
+  const PROFILE_TABLE = CFG?.PROFILE?.TABLE || "profiles";
+  const PROFILE_ID = CFG?.PROFILE?.ID_COLUMN || "user_id";
+  const AVATAR_COL = CFG?.PROFILE?.AVATAR_COLUMN || "profile_pic";
 
   function injectMsgEl(form, idFallback) {
     let el = form.querySelector('[data-auth-msg]') || (idFallback ? form.querySelector('#' + idFallback) : null);
@@ -139,20 +135,18 @@
     if (file.size > 5 * 1024 * 1024) return;
 
     const ext = (file.name || '').toLowerCase().match(/\.(png|jpe?g|webp)$/)?.[1]?.replace('jpeg', 'jpg') || 'png';
-    const path = `${user.id}/avatar_${Date.now()}.${ext}`;
+    const key = `${user.id}/avatar_${Date.now()}.${ext}`; // object key in 'avatars'
     const store = sb.storage.from('avatars');
 
-    const { error: upErr } = await store.upload(path, file, { upsert: true, cacheControl: '3600' });
+    const { error: upErr } = await store.upload(key, file, { upsert: true, cacheControl: '3600' });
     if (upErr) throw upErr;
 
-    const { data: pub } = store.getPublicUrl(path);
-    const url = pub?.publicUrl;
-    if (url) {
-      const { error: dbErr } = await sb.from('profiles').update({ avatar_url: url }).eq('user_id', user.id);
-      if (dbErr) throw dbErr;
-      // Let Settings/header know a new avatar is available
-      window.dispatchEvent(new CustomEvent('pinged:profile-updated'));
-    }
+    // Write the *key* to profiles.profile_pic (NOT a full URL)
+    const { error: dbErr } = await sb.from(PROFILE_TABLE).update({ [AVATAR_COL]: key }).eq(PROFILE_ID, user.id);
+    if (dbErr) throw dbErr;
+
+    // Let Settings/header know a new avatar is available
+    window.dispatchEvent(new CustomEvent('pinged:profile-updated', { detail: { [AVATAR_COL]: key } }));
   }
 
   // ---------- Sign in (EMAIL ONLY) ----------
@@ -168,7 +162,6 @@
     const btn = $('#si-btn'); if (btn) btn.disabled = true; say('');
     try {
       const { data, error } = await sb.auth.signInWithPassword({ email, password });
-      console.warn('[auth] signInWithPassword →', { data, error });
       if (error) return say(prettyErr(error));
       // success: auth-guard handles navigation
     } catch (err) {
@@ -196,12 +189,9 @@
         email, password,
         options: { emailRedirectTo: redirectVerify() }
       });
-      console.warn('[auth] signUp (with redirect) →', { data, error });
 
       if (error && looksRedirectError(error)) {
-        console.warn('[auth] signUp retry WITHOUT redirect (check Auth → Redirect URLs allowlist).');
         ({ data, error } = await sb.auth.signUp({ email, password }));
-        console.warn('[auth] signUp (no redirect) →', { data, error });
       }
 
       if (data?.user?.identities?.length === 0) return say('That email is already registered.');
@@ -225,14 +215,9 @@
     say('');
     try {
       let { data, error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectDashboard() } });
-      console.warn('[auth] signInWithOtp (with redirect) →', { data, error });
-
       if (error && looksRedirectError(error)) {
-        console.warn('[auth] OTP retry WITHOUT redirect.');
         ({ data, error } = await sb.auth.signInWithOtp({ email }));
-        console.warn('[auth] signInWithOtp (no redirect) →', { data, error });
       }
-
       if (error) return say(prettyErr(error));
       say('Magic link sent. Check your email.', true);
     } catch (e) {
@@ -250,7 +235,6 @@
     say('');
     try {
       const { data, error } = await sb.auth.resend({ type: 'signup', email });
-      console.warn('[auth] resend →', { data, error });
       if (error) return say(prettyErr(error));
       say('Verification email sent. Check your inbox.', true);
     } catch (e) {
@@ -268,14 +252,9 @@
     say('');
     try {
       let { data, error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: redirectReset() });
-      console.warn('[auth] resetPasswordForEmail (with redirect) →', { data, error });
-
       if (error && looksRedirectError(error)) {
-        console.warn('[auth] reset retry WITHOUT redirect.');
         ({ data, error } = await sb.auth.resetPasswordForEmail(email));
-        console.warn('[auth] resetPasswordForEmail (no redirect) →', { data, error });
       }
-
       if (error) return say(prettyErr(error));
       say('Reset link sent. Check your email.', true);
     } catch (e) {
