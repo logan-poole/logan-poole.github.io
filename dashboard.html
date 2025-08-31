@@ -33,10 +33,10 @@ dashboard.html
       <!-- Protected (shown after auth) -->
       <a href="dashboard.html" data-auth="protected" aria-current="page" hidden>Dashboard</a>
       <a href="map.html" data-auth="protected" hidden>Map</a>
+      <a href="chat.html" data-auth="protected" hidden>Chat</a>
       <a href="feed.html" data-auth="protected" hidden>Feed</a>
       <a href="friends.html" data-auth="protected" hidden>Friends</a>
       <a href="settings.html" data-auth="protected" hidden>Settings</a>
-      <a href="chat.html" data-auth="protected" hidden>Chat</a>
 
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
       <!-- profile dropdown injected by scripts/ui.js -->
@@ -60,6 +60,15 @@ dashboard.html
           </div>
           <h3>Feed</h3>
           <p class="muted">Quick updates from friends and groups.</p>
+        </a>
+        
+        <a class="tile" href="chat.html" aria-label="Open Chat">
+          <div class="icon">
+            <img class="icon-img" src="assets/icons/chat.png" data-still="assets/icons/chat.png"
+              data-anim="assets/icons/chat.gif" alt="Chat icon" loading="lazy" />
+          </div>
+          <h3>Chat</h3>
+          <p class="muted">Direct messages with your friends.</p>
         </a>
 
         <a class="tile" href="map.html" aria-label="Open Map">
@@ -98,14 +107,6 @@ dashboard.html
           <p class="muted">Profile info and privacy controls.</p>
         </a>
 
-        <a class="tile" href="chat.html" aria-label="Open Chat">
-          <div class="icon">
-            <img class="icon-img" src="assets/icons/chat.png" data-still="assets/icons/chat.png"
-              data-anim="assets/icons/chat.gif" alt="Chat icon" loading="lazy" />
-          </div>
-          <h3>Chat</h3>
-          <p class="muted">Direct messages with your friends.</p>
-        </a>
       </div>
     </div>
   </main>
