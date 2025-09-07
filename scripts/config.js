@@ -37,4 +37,5 @@
 
   window.PINGED_CONFIG = cfg;
   window.PINGED = window.PINGED || cfg; // back-compat alias
+
 })();
