@@ -1,35 +1,49 @@
 ﻿// supabase/functions/_shared/cors.ts
+// Central CORS helper for Edge Functions.
 
-/**
- * Build permissive CORS headers, echoing the browser's request headers.
- * For production you can restrict "origin" to your domain.
- */
-export function corsHeaders(req?: Request, originFallback = "*"): Headers {
-  const h = new Headers();
+const DEFAULT_ALLOWED = [
+  // Local dev
+  "http://localhost:5500",
+  "http://127.0.0.1:5500",
+  // GitHub Pages (your site)
+  "https://logan-poole.github.io",
+  // You can add more production origins here:
+  // "https://your-custom-domain.com",
+];
 
-  const origin = req?.headers.get("Origin") ?? originFallback;
-  h.set("Access-Control-Allow-Origin", origin);
-  h.set("Vary", "Origin");
-
-  // Echo back whatever headers the browser said it wants to send
-  const requested = req?.headers.get("Access-Control-Request-Headers")
-    ?? "authorization, x-client-info, apikey, content-type";
-  h.set("Access-Control-Allow-Headers", requested);
-
-  h.set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
-  h.set("Access-Control-Max-Age", "86400"); // cache preflight for a day
-  return h;
+function readAllowedFromEnv(): string[] {
+  const raw = Deno.env.get("ALLOWED_ORIGINS") || "";
+  // Comma-separated list in a secret is supported, e.g.
+  // ALLOWED_ORIGINS="https://a.com,https://b.com"
+  const fromEnv = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return fromEnv.length ? fromEnv : DEFAULT_ALLOWED;
 }
 
-/** Return a simple 200 OK preflight with CORS headers */
-export function ok(req?: Request): Response {
-  return new Response("ok", { status: 200, headers: corsHeaders(req) });
+export function allowOrigin(req: Request): string {
+  const origin = req.headers.get("origin") ?? "";
+  if (!origin) return ""; // non-browser or missing Origin
+  const allowed = readAllowedFromEnv();
+  return allowed.includes(origin) ? origin : "";
 }
 
-/** Merge CORS headers into any response */
-export function withCors(res: Response, req?: Request): Response {
-  const headers = corsHeaders(req);
-  // preserve existing headers from the response
-  for (const [k, v] of res.headers) headers.set(k, v);
+export function preflight() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "access-control-allow-origin": "*", // reflected later for actual requests
+      "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
+      "access-control-allow-headers": "authorization, content-type",
+      "access-control-max-age": "3600",
+    },
+  });
+}
+
+export function cors(res: Response, origin = "*") {
+  const headers = new Headers(res.headers);
+  headers.set("access-control-allow-origin", origin || "*");
+  headers.set("vary", "origin");
   return new Response(res.body, { status: res.status, headers });
 }

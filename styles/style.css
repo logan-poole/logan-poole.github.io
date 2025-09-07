@@ -905,3 +905,28 @@ button:focus-visible {
   height: 70vh;
   min-height: 420px;
 }
+
+.msg {
+  margin: 6px 0;
+  display: flex;
+}
+
+.msg--mine {
+  justify-content: flex-end;
+}
+
+.msg__bubble {
+  max-width: 70%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--card, #0f1115);
+}
+
+.msg--mine .msg__bubble {
+  background: var(--accent-bg, #1e2a);
+}
+
+.msg__meta {
+  font-size: 12px;
+  margin-top: 4px;
+}
