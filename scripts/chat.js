@@ -1,623 +1,490 @@
-/* =============================================================================
-FILE: pinged/scripts/chat.js
+/* FILE: scripts/chat.js  (COMPLETE, UPDATED)
+   PURPOSE
+   - Friends list (left) → DMs; New Group & Add People; messages with optional media.
+   - Friends come from friendships (or your friend RPCs if present).
+   - Start DM via RPC start_dm(other_id) if available; fallback creates conversation+participants.
+   - Reads/writes public.messages; subscribes to realtime by conversation_id.
+   - Uploads media to 'dm-media'/<conversation_id>/<filename> (adjust as needed).
 
-READ ME FIRST — What’s new in this update
-- Keeps your DM logic, RPC send, realtime + polling fallback, and username/email
-  labels (no raw UUIDs).
-- Fixes the confusing “Bucket not found” popups by distinguishing real missing
-  buckets from Storage RLS denials (Supabase returns 404 for both).
-- Adds precise upload diagnostics and a “probe” helper to test Storage from the
-  browser.
-- Still tries buckets in this order: window.PINGED_MEDIA_BUCKETS ?? ['dm-media','chat-media'].
-- Still sends "" for p_content when sending file-only messages (NOT NULL safe).
+   EXPECTED TABLES (align with config.js TABLES):
+   - conversations(id uuid pk default gen_random_uuid(), is_group boolean default false, title text, created_at timestamptz default now())
+   - conversation_participants(conversation_id uuid, user_id uuid, role text default 'member', created_at timestamptz default now(), primary key (conversation_id, user_id))
+   - messages(id uuid pk default gen_random_uuid(), conversation_id uuid, author_id uuid, body text, media_url text, media_type text, created_at timestamptz default now())
+   - friendships(user_low uuid, user_high uuid, status text, created_at timestamptz)  -- status = 'accepted'
+   - profiles(user_id uuid pk, username text, display_name text, profile_pic text, ...)
 
-Key additions
-- showStorageError(err, ctx): clear, actionable messages for 401/403/404/etc.
-- uploadChatFile(): instrumented; logs bucket/key/phase and hints.
-- window.tryProbeUpload(): tiny end-to-end upload/download test for each bucket.
-
-Labels (no UUIDs)
-- Preferred order: display_name → @username → email → short id (8). “You” for me.
-
-No server changes required for this client update.
-============================================================================= */
+   RLS (high level):
+   - conversations: members can select
+   - participants: members can select/insert (for self); maybe admins can invite
+   - messages: members can select/insert to their conversation
+   - storage: 'dm-media' bucket with object paths guarded by conversation membership (via signed URLs or policy)
+*/
 
 (function () {
-  const $  = (s, r=document)=>r.querySelector(s);
-  const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
-  /* === Storage buckets (can be overridden globally) ======================= */
-  const CHAT_BUCKETS = (window.PINGED_MEDIA_BUCKETS && Array.isArray(window.PINGED_MEDIA_BUCKETS))
-    ? window.PINGED_MEDIA_BUCKETS
-    : ['dm-media','chat-media'];
+  // Storage buckets (object paths: dm-media/<conversation_id>/<filename>)
+  const CHAT_BUCKETS = ['dm-media'];
 
   // DOM
-  const friendsEl      = $("#friends-list");
-  const searchEl       = $("#friend-search");
-  const newGroupBtn    = $("#new-group-btn");
-  const addPeopleBtn   = $("#add-people-btn");
+  const friendsEl = $("#friends-list");
+  const searchEl = $("#friend-search");
+  const newGroupBtn = $("#new-group-btn");
+  const addPeopleBtn = $("#add-people-btn");
   const participantsEl = $("#participants");
-
-  const logEl   = $("#chat-log");
-  const formEl  = $("#chat-form");
-  const textEl  = $("#chat-text");
+  const logEl = $("#chat-log");
+  const formEl = $("#chat-form");
+  const textEl = $("#chat-text");
   const filesEl = $("#chat-files");
 
-  // Modal
-  const modal        = $("#group-modal");
-  const modalClose   = $("#group-close");
-  const modalCancel  = $("#group-cancel");
-  const modalCreate  = $("#group-create");
+  // Modal (create group)
+  const modal = $("#group-modal");
+  const modalClose = $("#group-close");
+  const modalCancel = $("#group-cancel");
+  const modalCreate = $("#group-create");
   const modalFriends = $("#group-friends");
 
   // State
-  let sb = null;
-  let me = null;
-  let activeConv = null;   // { id, is_direct, created_by }
-  let channel = null;      // realtime channel
-  let pollTimer = null;    // polling fallback
-  let lastSeenAt = null;   // ISO string
-  /** @type {{id: string, username?: string, display_name?: string, email?: string, avatar_url?: string}[]} */
+  let sb = null, me = null;
+  let activeConv = null;
+  let channel = null;
   let allFriends = [];
+  const seenMsgIds = new Set();
 
-  /* === Name cache ========================================================= */
-  /** @type {Map<string, {id:string, username?:string, display_name?:string, email?:string, avatar_url?:string, label:string}>} */
-  const nameCache = new Map();
+  const { TABLES, PROFILE } = window.PINGED_CONFIG || window.PINGED || {};
+  const T_CONV = (TABLES && TABLES.CONVERSATIONS) || 'conversations';
+  const T_PART = (TABLES && TABLES.PARTICIPANTS) || 'conversation_participants';
+  const T_MSG = (TABLES && TABLES.MESSAGES) || 'messages';
+  const T_PROF = (TABLES && TABLES.PROFILES) || 'profiles';
+  const T_FSHIP = (TABLES && TABLES.FRIENDSHIPS) || 'friendships';
+  const AVATAR_COL = (PROFILE && PROFILE.AVATAR_COLUMN) || 'profile_pic';
 
-  function labelFromProfile(p){
-    return (p?.display_name?.trim())
-        || (p?.username ? `@${p.username}` : "")
-        || (p?.email || "")
-        || (p?.id ? p.id.slice(0,8) : "User");
-  }
-  function cacheProfile(p){
-    if (!p || !p.id) return;
-    const existing = nameCache.get(p.id) || {};
-    const merged = { ...existing, ...p };
-    merged.label = labelFromProfile(merged);
-    nameCache.set(p.id, merged);
-  }
-  function resolveNameSync(uid){
-    if (uid === me) return "You";
-    const rec = nameCache.get(uid);
-    if (rec) return rec.label;
-    return uid ? uid.slice(0,8) : "User";
-  }
-  async function ensureName(uid, onUpdate){
-    if (!uid || uid === me || nameCache.has(uid)) return resolveNameSync(uid);
-    // Try friends cache first
-    const f = allFriends.find(x => x.id === uid);
-    if (f){ cacheProfile({ id: uid, ...f }); onUpdate?.(resolveNameSync(uid)); return resolveNameSync(uid); }
-    // Try profiles table (if present)
-    try {
-      const { data, error } = await sb.from("profiles")
-        .select("id,username,display_name,email,avatar_url")
-        .eq("id", uid).single();
-      if (!error && data){ cacheProfile(data); onUpdate?.(resolveNameSync(uid)); }
-    } catch(_e){}
-    return resolveNameSync(uid);
+  // Helpers
+  function labelFromProfile(p) {
+    if (!p) return 'Unknown';
+    if (p.display_name) return p.display_name;
+    if (p.username) return '@' + p.username;
+    return 'User';
   }
 
-  // ========= E2EE STUBS =========
-  async function encryptForConversation(_convId, plaintext){ return plaintext; }
-  async function decryptForConversation(_convId, ciphertext){ return ciphertext; }
-
-  // ========= AUTH + INIT =========
-  async function requireAuth(){
-    const r = await sb.auth.getSession();
-    const user = r?.data?.session?.user;
-    if (!user){
-      location.replace("index.html?signin=1&next="+encodeURIComponent(location.pathname));
-      throw new Error("Not signed in");
-    }
-    me = user.id;
-    cacheProfile({ id: me, display_name: "You" });
+  function avatarFromProfile(p) {
+    return p && p[AVATAR_COL] ? p[AVATAR_COL] : 'assets/icons/profile.png';
   }
 
-  // ========= FRIENDS =========
-  async function loadFriends(){
-    // Rich list with profiles if available
-    const r1 = await sb.rpc("friends_with_profiles");
-    if (!r1.error && Array.isArray(r1.data)) {
-      allFriends = r1.data.map(row => ({
-        id: row.user_id,
-        username: row.username || null,
-        display_name: row.display_name || null,
-        email: row.email || null,
-        avatar_url: row.avatar_url || null
-      }));
-      allFriends.forEach(cacheProfile);   // seed name cache
-      renderFriends();
+  async function init() {
+    sb = (typeof window.getSB === 'function' ? window.getSB() : window.__sb);
+    if (!sb) { console.error('[chat] Missing Supabase client'); return; }
+
+    const { data } = await sb.auth.getUser();
+    me = data?.user || null;
+    if (!me) {
+      if (logEl) logEl.innerHTML = `<div class="muted" style="padding:10px">Please sign in.</div>`;
       return;
     }
-    // Fallback to ids only
-    const r2 = await sb.rpc("list_friends");
-    if (!r2.error && Array.isArray(r2.data)) {
-      allFriends = r2.data.map(row => ({ id: row.friend_id }));
-      allFriends.forEach(cacheProfile);
-      renderFriends();
-      return;
-    }
-    friendsEl && (friendsEl.innerHTML = "<div class='muted' style='padding:10px'>No friends yet.</div>");
-  }
 
-  function avatarLetterFromLabel(label){
-    const t = (label || "").replace(/^@/, "").trim();
-    return t ? t[0].toUpperCase() : "U";
-  }
-  function friendDisplayName(f){ return labelFromProfile({ id: f.id, ...f }); }
-  function friendSubline(f){
-    if (f?.username) return `@${f.username}`;
-    if (f?.email) return f.email;
-    return ""; // never show UUIDs in the subline
-  }
-
-  function friendRow(u){
-    const el = document.createElement("div");
-    el.className = "friend";
-    el.dataset.uid = u.id;
-
-    const av = document.createElement("div");
-    av.className = "avatar";
-    const label = friendDisplayName(u);
-    if (u.avatar_url) {
-      const img = document.createElement("img");
-      img.src = u.avatar_url; img.alt = label;
-      img.style.width="100%"; img.style.height="100%"; img.style.borderRadius="50%";
-      av.appendChild(img);
-    } else {
-      av.textContent = avatarLetterFromLabel(label);
+    // Wire UI
+    if (formEl) formEl.addEventListener('submit', onSend);
+    if (filesEl) filesEl.addEventListener('change', onFilesChosen);
+    if (newGroupBtn) newGroupBtn.addEventListener('click', openGroupModal);
+    if (addPeopleBtn) addPeopleBtn.addEventListener('click', () => openGroupModal(activeConv));
+    if (modalClose) modalClose.addEventListener('click', closeGroupModal);
+    if (modalCancel) modalCancel.addEventListener('click', closeGroupModal);
+    if (modalCreate) modalCreate.addEventListener('click', createGroupFromModal);
+    if (searchEl) {
+      searchEl.addEventListener('input', () => renderFriends(searchEl.value));
     }
 
-    const meta = document.createElement("div");
-    meta.className = "meta";
-    const name = document.createElement("div");
-    name.className = "name"; name.textContent = label;
-    const sub  = document.createElement("div");
-    sub.className = "sub"; sub.textContent = friendSubline(u);
-    meta.append(name, sub);
-
-    el.append(av, meta);
-    el.addEventListener("click", () => openDirectWith(u.id));
-    return el;
-  }
-
-  function renderFriends(){
-    if (!friendsEl) return;
-    const q = (searchEl?.value || "").toLowerCase();
-    friendsEl.innerHTML = "";
-    allFriends
-      .filter(f => {
-        const label = friendDisplayName(f).toLowerCase();
-        const sub   = friendSubline(f).toLowerCase();
-        return label.includes(q) || sub.includes(q);
-      })
-      .forEach(f => friendsEl.appendChild(friendRow(f)));
-    if (!friendsEl.childElementCount){
-      friendsEl.innerHTML = "<div class='muted' style='padding:10px'>No friends found.</div>";
-    }
-  }
-
-  // ========= CONVERSATIONS =========
-  async function openDirectWith(otherUserId){
-    clearActive();
-    const { data: convId, error } = await sb.rpc("create_or_get_dm", { p_other_user_id: otherUserId });
-    if (error){ alert(error.details || error.message); return; }
-
-    const meta = await sb.from("conversations")
-                         .select("id,is_direct,created_at")
-                         .eq("id", convId).single();
-
-    activeConv = meta.data || { id: convId, is_direct: true, created_by: me };
-    highlightFriend(otherUserId);
-
-    // make sure both names end up cached
-    cacheProfile({ id: otherUserId, ...allFriends.find(f=>f.id===otherUserId) });
-
-    await paintParticipants();
-    await loadMessages();
-    subscribeRealtime();
-    enableComposer(true);
-  }
-
-  // (Group helpers left for future use)
-  async function openGroupWith(members){
-    clearActive();
-    const { data, error } = await sb.rpc("create_group_conversation", { participants: members });
-    if (error){ alert(error.details || error.message); return; }
-    const meta = await sb.from("conversations").select("id,is_direct,created_by").eq("id", data).single();
-    activeConv = meta.data || { id: data, is_direct: false, created_by: me };
-    highlightFriend(null);
-    await paintParticipants();
-    await loadMessages();
-    subscribeRealtime();
-    enableComposer(true);
-  }
-
-  async function addPeopleToActive(members){
-    if (!activeConv) return;
-    const { error } = await sb.rpc("add_participants", { p_conversation_id: activeConv.id, new_user_ids: members });
-    if (error){ alert(error.details || error.message); return; }
-    members.forEach(id => cacheProfile({ id })); // prime cache
-    await paintParticipants();
-  }
-
-  function highlightFriend(uid){
-    $$(".friend").forEach(n => n.classList.toggle("active", n.dataset.uid === uid));
-  }
-
-  function clearActive(){
-    enableComposer(false);
-    if (channel) { sb.removeChannel(channel); channel = null; }
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-    logEl && (logEl.innerHTML = "");
-    participantsEl && (participantsEl.innerHTML = "");
-    activeConv = null;
-    lastSeenAt = null;
-  }
-
-  async function paintParticipants(){
-    if (!activeConv || !participantsEl) return;
-    const { data, error } = await sb
-      .from("conversation_members")
-      .select("user_id")
-      .eq("conversation_id", activeConv.id);
-    if (error) { console.error("[chat] participants error", error); return; }
-    participantsEl.innerHTML = "";
-    (data||[]).forEach(row => {
-      cacheProfile({ id: row.user_id, ...allFriends.find(f=>f.id===row.user_id) });
-      const label = resolveNameSync(row.user_id);
-      const p = document.createElement("span");
-      p.className = "participant";
-      const chip = document.createElement("span"); chip.className="chip"; chip.textContent = avatarLetterFromLabel(label);
-      const txt  = document.createElement("span"); txt.textContent = label;
-      p.append(chip, txt);
-      participantsEl.appendChild(p);
-      // Try to improve label asynchronously if unknown
-      ensureName(row.user_id, (newLabel)=>{ txt.textContent = newLabel; chip.textContent = avatarLetterFromLabel(newLabel); });
-    });
-    addPeopleBtn && (addPeopleBtn.disabled = !!activeConv?.is_direct);
-  }
-
-  // ========= MESSAGES =========
-  async function loadMessages(){
-    if (!activeConv || !logEl) return;
-
-    try {
-      let { data, error } = await sb
-        .from("messages_ui")
-        .select("*")
-        .eq("conversation_id", activeConv.id)
-        .order("created_at", { ascending: true })
-        .limit(500);
-
-      if (error){
-        ({ data, error } = await sb
-          .from("messages")
-          .select("*")
-          .eq("conversation_id", activeConv.id)
-          .order("created_at", { ascending: true })
-          .limit(500));
-        if (error){ throw error; }
-        data = (data||[]).map(m => ({
-          ...m,
-          content: m.content ?? m.body ?? null,
-          sender_id: m.sender_id
-        }));
-      }
-
-      logEl.innerHTML = "";
-      for (const m of (data||[])) appendMessage(m);
-      if (data?.length) lastSeenAt = data[data.length-1].created_at;
-      scrollToBottom();
-    } catch (err) {
-      console.error("[chat] load error", err);
-      alert("Could not load messages: " + (err.details || err.message || JSON.stringify(err)));
-    }
-  }
-
-  function appendMessage(m){
-    const sender = m.sender_id ?? "unknown";
-    const mine = sender === me;
-
-    const wrap = document.createElement("div");
-    wrap.className = "msg" + (mine ? " mine" : "");
-
-    const who = document.createElement("strong");
-    const initialLabel = resolveNameSync(sender);
-    who.textContent = mine ? "You" : initialLabel;
-    wrap.appendChild(who);
-
-    // Try to upgrade the label asynchronously if it was a fallback
-    if (!mine) ensureName(sender, (newLabel)=>{ who.textContent = newLabel; });
-
-    const contentText = m.content ?? m.body ?? "";
-    if (contentText) {
-      const div = document.createElement("span");
-      decryptForConversation(activeConv.id, contentText).then(txt => { div.innerText = " — " + txt; });
-      wrap.appendChild(div);
-    }
-
-    if (m.media_url){
-      const box = document.createElement("div"); box.className="media";
-      const t = (m.media_type||"").toLowerCase();
-      if (t.includes("video")){
-        const v=document.createElement("video"); v.controls=true; v.src=m.media_url; box.appendChild(v);
-      } else if (t.includes("audio") || t.includes("voice")){
-        const a=document.createElement("audio"); a.controls=true; a.src=m.media_url; box.appendChild(a);
-      } else {
-        const i=document.createElement("img"); i.src=m.media_url; box.appendChild(i);
-      }
-      wrap.appendChild(box);
-    }
-
-    const time = document.createElement("div"); time.className="muted"; time.textContent = new Date(m.created_at).toLocaleString();
-    wrap.appendChild(time);
-
-    logEl.appendChild(wrap);
-  }
-
-  function subscribeRealtime(){
-    if (channel) sb.removeChannel(channel);
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-    if (!activeConv) return;
-
-    channel = sb.channel("conv:"+activeConv.id)
-      .on("postgres_changes", {
-        event: "INSERT", schema: "public", table: "messages",
-        filter: `conversation_id=eq.${activeConv.id}`
-      }, (payload) => {
-        const m = payload.new;
-        appendMessage({ ...m, content: m.content ?? m.body ?? null });
-        lastSeenAt = m.created_at;
-        scrollToBottom();
-      })
-      .subscribe((status) => {
-        if (status !== "SUBSCRIBED" && !pollTimer) {
-          pollTimer = setInterval(async () => {
-            if (!activeConv) return;
-            const { data, error } = await sb
-              .from("messages")
-              .select("*")
-              .eq("conversation_id", activeConv.id)
-              .gt("created_at", lastSeenAt || "1970-01-01")
-              .order("created_at", { ascending: true })
-              .limit(50);
-            if (error) { console.error("[chat] poll error", error); return; }
-            if (data && data.length){
-              data.forEach(m => appendMessage({ ...m, content: m.content ?? m.body ?? null }));
-              lastSeenAt = data[data.length-1].created_at;
-              scrollToBottom();
-            }
-          }, 5000);
-        }
-      });
-  }
-
-  function enableComposer(enabled){
-    formEl?.querySelector("button[type=submit]")?.toggleAttribute("disabled", !enabled);
-    textEl?.toggleAttribute("disabled", !enabled);
-    filesEl?.toggleAttribute("disabled", !enabled);
-  }
-
-  /* ========= Storage diagnostics & upload ================================= */
-
-  function showStorageError(err, ctx = {}) {
-    const code = err?.statusCode ?? err?.status ?? null;
-    const msg = err?.message || String(err);
-
-    console.error('[storage]', ctx.phase || 'op', 'bucket:', ctx.bucket, 'key:', ctx.key, '→', code, msg, err);
-
-    let hint = '';
-    if (code === 401 || code === 403) {
-      hint =
-        'Access denied. Check Storage RLS: are you a member of this conversation AND does the key start with conv-<uuid>/?';
-    } else if (code === 404) {
-      hint =
-        'Not found (or blocked by RLS). Buckets exist, so this is usually policy denial.\n' +
-        '• Ensure object key format: conv-<conversation_uuid>/filename\n' +
-        '• Ensure your user is in public.conversation_members for that conversation\n' +
-        '• Ensure Storage policies use the same regex + bucket check';
-    } else if (/already exists/i.test(msg)) {
-      hint = 'Object already exists. Use a new random filename or { upsert: true }.';
-    } else if (/bucket/i.test(msg)) {
-      hint = 'Bucket error. Verify id EXACTLY "dm-media" or "chat-media" in THIS project.';
-    } else {
-      hint = 'Unexpected error. See console for details.';
-    }
-
-    if (!showStorageError._debounce) {
-      alert(`Send failed: ${msg}\n\nHint: ${hint}`);
-      showStorageError._debounce = setTimeout(() => (showStorageError._debounce = null), 250);
-    }
-  }
-
-  // Try configured buckets; return a signed URL on success
-  async function uploadChatFile(){
-    const f = filesEl?.files?.[0];
-    if (!f) return { url: null, type: null };
-    if (!activeConv?.id) throw new Error('No active conversation.');
-
-    const key = `conv-${activeConv.id}/${crypto.randomUUID()}-${f.name}`;
-    const candidateBuckets = CHAT_BUCKETS;
-
-    for (const bucket of candidateBuckets){
-      const up = await sb.storage.from(bucket).upload(key, f, { upsert:false, cacheControl:"3600" });
-      if (!up.error) {
-        const signed = await sb.storage.from(bucket).createSignedUrl(key, 60*60*24*7);
-        if (signed.error) {
-          showStorageError(signed.error, { bucket, key, phase: 'createSignedUrl' });
-          throw signed.error;
-        }
-        const type = guessTypeFromName(f.name) || f.type || "application/octet-stream";
-        return { url: signed.data.signedUrl, type };
-      }
-      // Explain why upload failed on this bucket
-      showStorageError(up.error, { bucket, key, phase: 'upload' });
-    }
-
-    throw new Error('Upload failed on all buckets. See console for detailed diagnostics.');
-  }
-
-  function guessTypeFromName(name){
-    if (/\.(mp4|webm|ogg)$/i.test(name)) return "video/mp4";
-    if (/\.(mp3|m4a|wav|ogg)$/i.test(name)) return "audio/mpeg";
-    if (/\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name)) return "image/png";
-    return "";
-  }
-
-  // Optional: quick probe you can run from DevTools AFTER opening a DM
-  window.tryProbeUpload = async () => {
-    try {
-      if (!activeConv?.id) return console.warn('Open a DM first so activeConv is set.');
-      const text = `pinged probe ${new Date().toISOString()}`;
-      const file = new File([text], 'probe.txt', { type: 'text/plain' });
-      const key = `conv-${activeConv.id}/probe-${crypto.randomUUID()}.txt`;
-
-      for (const bucket of CHAT_BUCKETS) {
-        const up = await sb.storage.from(bucket).upload(key, file);
-        if (up.error) {
-          showStorageError(up.error, { bucket, key, phase: 'probe-upload' });
-        } else {
-          console.log('[probe] uploaded to', bucket, key);
-          const dl = await sb.storage.from(bucket).download(key);
-          if (dl.error) showStorageError(dl.error, { bucket, key, phase: 'probe-download' });
-          else console.log('[probe] downloaded OK from', bucket);
-        }
-      }
-    } catch (e) {
-      console.error('tryProbeUpload failed', e);
-    }
-  };
-
-  // ========= SEND ===========================================================
-  async function sendViaRpc(payload){
-    const { data, error } = await sb.rpc("send_message", {
-      p_conversation_id: payload.conversation_id,
-      p_content:         payload.body ?? payload.content ?? "",
-      p_media_type:      payload.media_type ?? null,
-      p_media_url:       payload.media_url ?? null
-    });
-    if (error) throw error;
-    console.log("[chat] sent message id:", String(data)); // bigint or uuid -> safe log
-  }
-
-  async function onSend(e){
-    e.preventDefault();
-    if (!activeConv) return;
-
-    const raw = (textEl?.value || "").trim();
-    const msgText = raw ? await encryptForConversation(activeConv.id, raw) : null;
-    const hasText = !!msgText;
-    const hasFile = (filesEl?.files?.length || 0) > 0;
-    if (!hasText && !hasFile) return;
-
-    const contentToSend = hasText ? msgText : "";  // satisfy NOT NULL schemas
-
-    const btn = formEl?.querySelector("button[type=submit]");
-    if (btn) btn.disabled = true;
-    if (textEl) textEl.disabled = true;
-
-    try {
-      let media_url = null, media_type = null;
-      if (hasFile) {
-        const uploaded = await uploadChatFile();
-        media_url = uploaded.url;
-        media_type = uploaded.type;
-      }
-      const payload = {
-        conversation_id: activeConv.id,
-        body: contentToSend,
-        media_url,
-        media_type
-      };
-
-      await sendViaRpc(payload);
-
-      // Optimistic append (Realtime will also deliver the row)
-      appendMessage({
-        conversation_id: activeConv.id,
-        sender_id: me,
-        body: contentToSend,
-        media_url,
-        media_type,
-        created_at: new Date().toISOString()
-      });
-
-      if (textEl) textEl.value = "";
-      if (filesEl) filesEl.value = "";
-      setTimeout(scrollToBottom, 50);
-    } catch (err) {
-      console.error("[send failed]", err);
-      alert("Send failed: " + (err.details || err.message || JSON.stringify(err)));
-    } finally {
-      if (btn) btn.disabled = false;
-      if (textEl) { textEl.disabled = false; textEl.focus(); }
-    }
-  }
-
-  // ========= MODAL (Group) =========
-  function openGroupModal(){
-    renderModalFriends();
-    if (modal) modal.hidden = false;
-  }
-  function closeGroupModal(){ if (modal) modal.hidden = true; }
-
-  function renderModalFriends(){
-    if (!modalFriends) return;
-    modalFriends.innerHTML = "";
-    allFriends.forEach(f => {
-      const row = document.createElement("label");
-      row.className = "row";
-      const cb = document.createElement("input");
-      cb.type = "checkbox"; cb.value = f.id;
-      const span = document.createElement("span");
-      span.textContent = `${friendDisplayName(f)}${friendSubline(f) ? " ("+friendSubline(f)+")" : ""}`;
-      row.append(cb, span);
-      modalFriends.appendChild(row);
-    });
-  }
-
-  function selectedModalFriends(){
-    return $$("input[type=checkbox]", modalFriends).filter(cb => cb.checked).map(cb => cb.value);
-  }
-
-  async function onCreateGroup(){
-    const members = selectedModalFriends();
-    if (members.length === 0){ alert("Pick at least one friend."); return; }
-    await openGroupWith(members);
-    closeGroupModal();
-  }
-
-  async function onAddPeople(){
-    openGroupModal();
-    modalCreate.onclick = async () => {
-      const members = selectedModalFriends();
-      if (members.length === 0){ closeGroupModal(); return; }
-      await addPeopleToActive(members);
-      closeGroupModal();
-    };
-  }
-
-  // ========= UTIL =========
-  function scrollToBottom(){ if (logEl) logEl.scrollTop = (logEl.scrollHeight||0)+999; }
-
-  // ========= BOOT =========
-  document.addEventListener("DOMContentLoaded", async () => {
-    sb = (typeof window.getSB === "function" ? window.getSB() : null);
-    if (!sb){ alert("Supabase not initialized."); return; }
-
-    await requireAuth();
     await loadFriends();
+    subscribePresence(); // realtime messages for active conversation are attached via enterConversation
+  }
 
-    searchEl && searchEl.addEventListener("input", renderFriends);
-    newGroupBtn && newGroupBtn.addEventListener("click", openGroupModal);
-    addPeopleBtn && addPeopleBtn.addEventListener("click", onAddPeople);
-    formEl && formEl.addEventListener("submit", onSend);
+  // ---- Friends ----
 
-    modalClose && modalClose.addEventListener("click", closeGroupModal);
-    modalCancel && modalCancel.addEventListener("click", closeGroupModal);
-    modalCreate && modalCreate.addEventListener("click", onCreateGroup);
-    modal && modal.addEventListener("click", (e)=>{ if(e.target===modal) closeGroupModal(); });
-  });
+  async function loadFriends() {
+    // Prefer RPCs if you created them (list_friends). Otherwise query friendships table.
+    let rows = [];
+    try {
+      const { data, error } = await sb.rpc('list_friends'); // optional RPC
+      if (!error && data) {
+        rows = data; // expected: [{ id, username, display_name, email, profile_pic }, ...]
+      } else {
+        // fallback to friendships table: accepted pairs (user_low,user_high) with status='accepted'
+        const { data: fs, error: e1 } = await sb
+          .from(T_FSHIP)
+          .select('*')
+          .or(`user_low.eq.${me.id},user_high.eq.${me.id}`)
+          .eq('status', 'accepted')
+          .limit(200);
+
+        if (e1) throw e1;
+
+        // Map into friend user_ids (other side)
+        const friendIds = [...new Set(
+          (fs || []).map(r => r.user_low === me.id ? r.user_high : r.user_low)
+        )];
+        if (friendIds.length) {
+          const { data: profs, error: e2 } = await sb
+            .from(T_PROF)
+            .select(`user_id, username, display_name, email, ${AVATAR_COL}`)
+            .in('user_id', friendIds);
+          if (e2) throw e2;
+          rows = (profs || []).map(p => ({
+            id: p.user_id,
+            username: p.username,
+            display_name: p.display_name,
+            email: p.email,
+            profile_pic: p[AVATAR_COL]
+          }));
+        }
+      }
+    } catch (err) {
+      console.error('[chat] friends load error', err);
+    }
+    allFriends = rows || [];
+    renderFriends();
+  }
+
+  function renderFriends(filterText = '') {
+    if (!friendsEl) return;
+    const q = (filterText || '').trim().toLowerCase();
+    const items = allFriends
+      .filter(f => {
+        const hay = [f.username, f.display_name, f.email].filter(Boolean).join(' ').toLowerCase();
+        return !q || hay.includes(q);
+      })
+      .sort((a, b) => (a.display_name || a.username || '').localeCompare(b.display_name || b.username || ''));
+
+    friendsEl.innerHTML = '';
+    if (items.length === 0) {
+      friendsEl.innerHTML = `<div class="muted" style="padding:10px">No friends matched.</div>`;
+      return;
+    }
+    items.forEach(f => {
+      const btn = document.createElement('button');
+      btn.className = 'friend';
+      btn.type = 'button';
+      btn.innerHTML = `
+        <img src="${f.profile_pic || 'assets/icons/profile.png'}" width="32" height="32" style="border-radius:50%" alt="">
+        <div class="meta">
+          <div class="name">${f.display_name || '@' + f.username || f.email || 'Friend'}</div>
+          <div class="sub muted">${f.username ? '@' + f.username : (f.email || '')}</div>
+        </div>`;
+      btn.addEventListener('click', () => openDM(f.id));
+      friendsEl.appendChild(btn);
+    });
+  }
+
+  // ---- Conversations ----
+
+  async function openDM(otherUserId) {
+    // Try your RPC if present
+    let convId = null;
+    try {
+      const { data, error } = await sb.rpc('start_dm', { p_other_user_id: otherUserId });
+      if (!error && data) convId = typeof data === 'string' ? data : data?.id;
+    } catch (_) { }
+
+    // Fallback: create/find client-side
+    if (!convId) {
+      const { data: existing, error: e0 } = await sb
+        .from(T_CONV)
+        .select('id')
+        .eq('is_group', false)
+        .in('id', sb.from(T_PART).select('conversation_id').eq('user_id', me.id)) // NOTE: supabase-js does not support subselect directly; best-effort fallback below
+        .limit(1);
+      // ^ Above subselect isn’t supported; fallback: fetch my conv ids then check participants for other.
+      let myConvIds = [];
+      if (!existing) {
+        const { data: mineParts } = await sb.from(T_PART).select('conversation_id').eq('user_id', me.id).limit(1000);
+        myConvIds = [...new Set((mineParts || []).map(r => r.conversation_id))];
+        if (myConvIds.length) {
+          const { data: cands } = await sb.from(T_CONV).select('id').eq('is_group', false).in('id', myConvIds);
+          if (cands && cands.length) {
+            // check if other user is in any
+            for (const c of cands) {
+              const { data: hasOther } = await sb.from(T_PART)
+                .select('user_id').eq('conversation_id', c.id).eq('user_id', otherUserId).limit(1);
+              if (hasOther && hasOther.length) { convId = c.id; break; }
+            }
+          }
+        }
+      }
+      if (!convId) {
+        // Create new conversation + two participants
+        const { data: conv, error: e1 } = await sb.from(T_CONV).insert({ is_group: false }).select('id').single();
+        if (e1) { console.error('[chat] create DM conv failed', e1); return; }
+        convId = conv.id;
+        const { error: e2 } = await sb.from(T_PART).insert([
+          { conversation_id: convId, user_id: me.id, role: 'member' },
+          { conversation_id: convId, user_id: otherUserId, role: 'member' }
+        ]);
+        if (e2) { console.error('[chat] add participants failed', e2); return; }
+      }
+    }
+
+    await enterConversation(convId);
+  }
+
+  async function enterConversation(conversationId) {
+    activeConv = conversationId;
+    if (addPeopleBtn) addPeopleBtn.disabled = false;
+    await renderParticipants(conversationId);
+    await loadMessages(conversationId);
+    subscribeMessages(conversationId);
+  }
+
+  async function renderParticipants(conversationId) {
+    if (!participantsEl) return;
+    const { data: parts, error } = await sb.from(T_PART).select('user_id').eq('conversation_id', conversationId);
+    if (error) { console.error('[chat] participants error', error); return; }
+    const ids = (parts || []).map(r => r.user_id);
+    const { data: profs, error: e2 } = await sb
+      .from(T_PROF)
+      .select(`user_id, username, display_name, ${AVATAR_COL}`)
+      .in('user_id', ids);
+    if (e2) { console.error('[chat] participants profile error', e2); return; }
+
+    participantsEl.innerHTML = '';
+    (profs || []).forEach(p => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.innerHTML = `<img src="${avatarFromProfile(p)}" width="20" height="20" style="border-radius:50%;vertical-align:middle;margin-right:6px"> ${labelFromProfile(p)}`;
+      participantsEl.appendChild(chip);
+    });
+  }
+
+  // ---- Messages ----
+
+  function messageBubble(msg, authorProfile) {
+    const mine = msg.author_id === me.id;
+    const wrap = document.createElement('div');
+    wrap.className = `msg ${mine ? 'mine' : 'theirs'}`;
+
+    if (!mine) {
+      const avatar = document.createElement('img');
+      avatar.src = avatarFromProfile(authorProfile);
+      avatar.alt = '';
+      avatar.width = 28; avatar.height = 28; avatar.style.borderRadius = '50%';
+      wrap.appendChild(avatar);
+    }
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+
+    if (msg.body) {
+      const p = document.createElement('p');
+      p.textContent = msg.body;
+      bubble.appendChild(p);
+    }
+
+    if (msg.media_url) {
+      if ((msg.media_type || '').startsWith('video/')) {
+        const v = document.createElement('video');
+        v.src = msg.media_url; v.controls = true; v.preload = 'metadata';
+        v.style.maxWidth = '100%'; v.style.borderRadius = '8px'; v.style.marginTop = '6px';
+        bubble.appendChild(v);
+      } else {
+        const i = document.createElement('img');
+        i.src = msg.media_url; i.alt = '';
+        i.loading = 'lazy';
+        i.style.maxWidth = '100%'; i.style.borderRadius = '8px'; i.style.marginTop = '6px';
+        bubble.appendChild(i);
+      }
+    }
+
+    const ts = document.createElement('div');
+    ts.className = 'ts';
+    ts.textContent = new Date(msg.created_at).toLocaleString();
+    bubble.appendChild(ts);
+
+    wrap.appendChild(bubble);
+    return wrap;
+  }
+
+  async function loadMessages(conversationId) {
+    if (!logEl) return;
+    logEl.innerHTML = '<div class="muted" style="padding:10px">Loading…</div>';
+
+    const { data: rows, error } = await sb
+      .from(T_MSG)
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true })
+      .limit(500);
+
+    if (error) { console.error('[chat] load messages error', error); return; }
+
+    // Collect author ids → profiles
+    const authorIds = [...new Set((rows || []).map(r => r.author_id).filter(Boolean))];
+    let authorMap = {};
+    if (authorIds.length) {
+      const { data: profs } = await sb
+        .from(T_PROF)
+        .select(`user_id, username, display_name, ${AVATAR_COL}`)
+        .in('user_id', authorIds);
+      (profs || []).forEach(p => { authorMap[p.user_id] = p; });
+    }
+
+    logEl.innerHTML = '';
+    (rows || []).forEach(m => logEl.appendChild(messageBubble(m, authorMap[m.author_id])));
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function subscribeMessages(conversationId) {
+    if (channel) sb.removeChannel(channel);
+    channel = sb.channel(`msgs-${conversationId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: T_MSG, filter: `conversation_id=eq.${conversationId}` }, (payload) => {
+        const m = payload.new;
+        if (!m || seenMsgIds.has(m.id)) return;
+        seenMsgIds.add(m.id);
+        appendIncoming(m);
+      })
+      .subscribe();
+  }
+
+  async function appendIncoming(m) {
+    if (!logEl || !activeConv || m.conversation_id !== activeConv) return;
+    // fetch author
+    let author = null;
+    const { data: profs } = await sb
+      .from(T_PROF)
+      .select(`user_id, username, display_name, ${AVATAR_COL}`)
+      .eq('user_id', m.author_id)
+      .limit(1);
+    author = (profs && profs[0]) || null;
+    logEl.appendChild(messageBubble(m, author));
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // ---- Sending ----
+
+  async function onFilesChosen() {
+    if (!filesEl?.files?.length) return;
+    // Just preview count; actual upload occurs on send
+    // (You can add previews here if you like)
+  }
+
+  async function uploadMedia(conversationId, file) {
+    const bucket = CHAT_BUCKETS[0];
+    const path = `${conversationId}/${Date.now()}_${(file.name || 'file').replace(/\s+/g, '_')}`;
+    const { data, error } = await sb.storage.from(bucket).upload(path, file, { upsert: false, contentType: file.type || 'application/octet-stream' });
+    if (error) throw error;
+    // public URL or signed — adjust depending on your bucket policy:
+    const { data: pub } = sb.storage.from(bucket).getPublicUrl(path);
+    return { url: pub?.publicUrl || null, type: file.type || null };
+  }
+
+  async function onSend(e) {
+    e.preventDefault();
+    if (!activeConv) return alert('Open a conversation first.');
+    const body = (textEl?.value || '').trim();
+    let media_url = null, media_type = null;
+
+    // If files selected, upload the first (you can extend to multiple)
+    if (filesEl && filesEl.files && filesEl.files.length) {
+      try {
+        const up = await uploadMedia(activeConv, filesEl.files[0]);
+        media_url = up.url; media_type = up.type;
+      } catch (err) {
+        console.error('[chat] upload failed', err);
+        return alert('Could not upload media.');
+      }
+    }
+
+    // Optimistic append (mine)
+    if (logEl) {
+      const optimistic = {
+        id: 'optimistic-' + Date.now(),
+        conversation_id: activeConv,
+        author_id: me.id,
+        body, media_url, media_type,
+        created_at: new Date().toISOString()
+      };
+      seenMsgIds.add(optimistic.id);
+      logEl.appendChild(messageBubble(optimistic, { username: 'you', display_name: 'You', [AVATAR_COL]: null }));
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    const { error } = await sb.from(T_MSG).insert({
+      conversation_id: activeConv,
+      author_id: me.id,
+      body: body || null,
+      media_url, media_type
+    });
+    if (error) {
+      console.error('[chat] send error', error);
+      alert('Could not send message. Check RLS.');
+    }
+
+    // Reset inputs
+    if (textEl) textEl.value = '';
+    if (filesEl) filesEl.value = '';
+  }
+
+  // ---- Groups ----
+
+  function openGroupModal(existingConversationId = null) {
+    if (!modal) return;
+    modal.dataset.mode = existingConversationId ? 'add' : 'create';
+    modal.dataset.conversationId = existingConversationId || '';
+    // render friend checkboxes
+    if (modalFriends) {
+      modalFriends.innerHTML = '';
+      allFriends.forEach(f => {
+        const id = `friend-${f.id}`;
+        const li = document.createElement('label');
+        li.className = 'friend-check';
+        li.htmlFor = id;
+        li.innerHTML = `
+          <input type="checkbox" id="${id}" value="${f.id}">
+          <img src="${f.profile_pic || 'assets/icons/profile.png'}" width="24" height="24" style="border-radius:50%">
+          <span>${f.display_name || '@' + f.username || f.email || 'Friend'}</span>
+        `;
+        modalFriends.appendChild(li);
+      });
+    }
+    modal.removeAttribute('hidden');
+  }
+
+  function closeGroupModal() {
+    if (!modal) return;
+    modal.setAttribute('hidden', '');
+  }
+
+  async function createGroupFromModal() {
+    if (!modal) return;
+    const mode = modal.dataset.mode || 'create';
+    const selected = Array.from(modalFriends.querySelectorAll('input[type=checkbox]:checked')).map(i => i.value);
+    if (!selected.length) return alert('Select at least one friend.');
+
+    if (mode === 'create') {
+      const { data: conv, error: e1 } = await sb.from(T_CONV).insert({ is_group: true }).select('id').single();
+      if (e1) { console.error('[chat] create group failed', e1); return; }
+      const convId = conv.id;
+      const inserts = [{ conversation_id: convId, user_id: me.id, role: 'admin' }]
+        .concat(selected.map(uid => ({ conversation_id: convId, user_id: uid, role: 'member' })));
+      const { error: e2 } = await sb.from(T_PART).insert(inserts);
+      if (e2) { console.error('[chat] add members failed', e2); return; }
+      closeGroupModal();
+      await enterConversation(convId);
+    } else {
+      // add to existing conversation
+      const convId = modal.dataset.conversationId;
+      if (!convId) return;
+      const inserts = selected.map(uid => ({ conversation_id: convId, user_id: uid, role: 'member' }));
+      const { error: e3 } = await sb.from(T_PART).insert(inserts);
+      if (e3) { console.error('[chat] add members failed', e3); return; }
+      closeGroupModal();
+      await renderParticipants(convId);
+    }
+  }
+
+  // ---- Realtime bootstrap ----
+  function subscribePresence() {
+    // Nothing here yet; per-conversation subscription happens in subscribeMessages()
+  }
+
+  // Boot
+  document.addEventListener('DOMContentLoaded', init);
 })();

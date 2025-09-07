@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pinged — Admin</title>
+    <link rel="stylesheet" href="../styles/style.css" />
+    <link rel="icon" href="../assets/favicon.ico" type="image/x-icon" />
+    <style>
+        .grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .grid-3 {
+            grid-template-columns: 1fr;
+        }
+
+        @media (min-width: 900px) {
+            .grid-3 {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .metric {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .metric h4 {
+            margin: 0;
+            font-size: .95rem;
+            opacity: .85;
+        }
+
+        .metric .big {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(0, 0, 0, .08);
+        }
+
+        th {
+            text-align: left;
+            opacity: .8;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="topnav">
+        <a href="../index.html" class="nav-left" style="text-decoration:none;">
+            <img src="../assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
+            <span class="app-name">Pinged</span>
+        </a>
+        <nav class="nav-right">
+            <a href="../dashboard.html" data-auth="protected">Dashboard</a>
+            <a href="../feed.html" data-auth="protected">Feed</a>
+            <a href="../map.html" data-auth="protected">Map</a>
+            <a id="nav-admin" href="./admin.html" aria-current="page" style="display:none">Admin</a>
+            <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
+        </nav>
+    </header>
+
+    <main class="content">
+        <section class="card" style="max-width:1080px;margin:24px auto;">
+            <h1 style="margin-top:0">Admin Overview</h1>
+            <p class="muted" id="who"></p>
+
+            <div id="gate" class="card" style="display:none;"></div>
+
+            <div id="content" style="display:none;">
+                <!-- Metrics -->
+                <section class="card">
+                    <h3 style="margin-top:0">Key metrics</h3>
+                    <div class="grid grid-3">
+                        <div class="card metric">
+                            <h4>Total users</h4>
+                            <div class="big" id="m-total">—</div>
+                        </div>
+                        <div class="card metric">
+                            <h4>New (7 days)</h4>
+                            <div class="big" id="m-new7">—</div>
+                        </div>
+                        <div class="card metric">
+                            <h4>Active (24h)</h4>
+                            <div class="big" id="m-a24">—</div>
+                        </div>
+                        <div class="card metric">
+                            <h4>Active (30d)</h4>
+                            <div class="big" id="m-a30">—</div>
+                        </div>
+                        <div class="card metric">
+                            <h4>Admins</h4>
+                            <div class="big" id="m-admins">—</div>
+                        </div>
+                        <div class="card metric">
+                            <h4>Banned</h4>
+                            <div class="big" id="m-banned">—</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Signups chart -->
+                <section class="card">
+                    <h3 style="margin-top:0">Sign-ups (last 30 days)</h3>
+                    <canvas id="signupChart" height="110"></canvas>
+                </section>
+
+                <!-- Quick links -->
+                <section class="card">
+                    <h3 style="margin-top:0">Admin tools</h3>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;">
+                        <a class="card" href="./users.html" style="text-decoration:none;">
+                            <h4 style="margin-top:0;">Manage Users</h4>
+                            <p class="muted" style="margin:0">Create, ban/unban, delete, promote.</p>
+                        </a>
+                    </div>
+                </section>
+
+                <!-- Recent logins -->
+                <section class="card">
+                    <h3 style="margin-top:0">Recent logins</h3>
+                    <div class="muted" id="login-empty" style="display:none;">No recent logins.</div>
+                    <div style="overflow:auto;">
+                        <table id="login-table">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>When</th>
+                                    <th>User ID</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <div style="display:flex;gap:10px;align-items:center;margin-top:16px;">
+                    <button id="logout" class="btn">Sign out</button>
+                    <a href="../dashboard.html" class="btn ghost">Back to Dashboard</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Pinged. All rights reserved.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="../scripts/config.js"></script>
+    <script src="../scripts/sb-client.js"></script>
+    <script src="../scripts/admin-nav.js"></script>
+    <script src="../scripts/ui.js" defer></script>
+    <script src="../scripts/theme-toggle.js" defer></script>
+
+    <!-- Gate + stats -->
+    <script src="../scripts/admin-stats.js"></script>
+</body>
+
+</html>

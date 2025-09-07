@@ -1,5 +1,5 @@
 <!-- =============================================================================
-FILE: feed.html  (COMPLETE)
+FILE: feed.html  (COMPLETE, UPDATED)
 PURPOSE
 - Private feed page reachable from the dashboard tile.
 - Protected via data-require-auth="true".
@@ -30,26 +30,35 @@ PURPOSE
       <a href="support.html" data-auth="public" hidden>Support</a>
       <!-- Protected -->
       <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
-      <a href="feed.html" data-auth="protected" aria-current="page" hidden>Feed</a>
-      <a href="map.html" data-auth="protected" hidden>Map</a>
+      <a href="feed.html" data-auth="protected" hidden>Feed</a>
       <a href="friends.html" data-auth="protected" hidden>Friends</a>
-      <a href="settings.html" data-auth="protected" hidden>Settings</a>
       <a href="chat.html" data-auth="protected" hidden>Chat</a>
-      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
+      <a href="map.html" data-auth="protected" hidden>Map</a>
+      <a href="customise.html" data-auth="protected" hidden>Customise</a>
+      <a href="#" id="logout-link" data-auth="protected" hidden>Logout</a>
     </nav>
   </header>
 
-  <main class="content container">
-    <p><a href="dashboard.html">← Back to Dashboard</a></p>
-    <h1 class="page-title">Feed</h1>
+  <main class="container">
+    <h1>Feed</h1>
 
     <section class="card">
-      <form id="post-form">
+      <form id="post-form" class="stack" autocomplete="off">
         <label for="post-text">Share an update</label>
         <textarea id="post-text" placeholder="What's happening?" rows="3"></textarea>
-        <button class="primary" type="submit">Post</button>
+
+        <label for="post-image-url">Image URL (optional)</label>
+        <input id="post-image-url" type="url" placeholder="https://example.com/image.jpg" />
+
+        <div class="row right">
+          <button id="post-submit" class="primary" type="submit">Post</button>
+        </div>
       </form>
+    </section>
+
+    <section class="card">
       <div id="feed-list" class="stack"></div>
+      <div id="feed-empty" class="muted" style="padding:10px; display:none;"></div>
     </section>
   </main>
 
@@ -58,51 +67,22 @@ PURPOSE
   </footer>
 
   <!-- Core (order matters) -->
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/config.js"></script>
   <script src="scripts/sb-client.js"></script>
+  <script src="scripts/ui.js"></script>
+  <script src="scripts/scripts.js"></script>
+
+  <!-- Flags BEFORE guard -->
   <script src="scripts/page-flags.js"></script>
   <script src="scripts/auth-guard.js"></script>
+  <script src="scripts/auth-modals.js"></script>
 
+  <!-- Page logic -->
+  <script src="scripts/feed.js"></script>
 
-  <!-- UI -->
-  <script src="scripts/ui.js" defer></script>
-  <script src="scripts/theme-toggle.js" defer></script>
-
-  <!-- Provide __currentUser for your local demos -->
-  <script>
-    window.addEventListener('pinged:auth', (e) => { window.__currentUser = e.detail?.user || null; });
-  </script>
-
-  <!-- Minimal placeholder feed (local only) -->
-  <script>
-    const KEY = 'pinged_demo_feed_v1';
-    const $ = (s, r = document) => r.querySelector(s);
-    const list = $('#feed-list'), form = $('#post-form'), ta = $('#post-text');
-    function load() { try { return JSON.parse(localStorage.getItem(KEY) || '[]') } catch { return [] } }
-    function save(x) { try { localStorage.setItem(KEY, JSON.stringify(x)) } catch { } }
-    function render() {
-      list.innerHTML = '';
-      const f = load().reverse();
-      if (!f.length) { list.innerHTML = '<p class="muted">No posts yet.</p>'; return; }
-      for (const p of f) {
-        const div = document.createElement('div');
-        div.className = 'card';
-        div.innerHTML = `<strong>${p.author || 'You'}</strong><p style="margin:.4rem 0 0">${p.text}</p><p class="muted" style="margin:.4rem 0 0">${new Date(p.ts).toLocaleString()}</p>`;
-        list.appendChild(div);
-      }
-    }
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const t = (ta.value || '').trim(); if (!t) return;
-      const u = window.__currentUser;
-      const feed = load(); feed.push({ text: t, ts: Date.now(), author: u?.email || 'You' });
-      save(feed); ta.value = ''; render();
-      window.pingedUI?.showToast?.('Posted');
-    });
-    document.addEventListener('DOMContentLoaded', render);
-  </script>
+  <!-- Theme toggle -->
+  <script defer src="scripts/theme-toggle.js"></script>
 </body>
 
 </html>

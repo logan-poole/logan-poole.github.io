@@ -33,6 +33,9 @@
       <a href="feed.html" data-auth="protected" hidden>Feed</a>
       <a href="map.html" data-auth="protected" hidden>Map</a>
 
+      <!-- Admin (shown only if user is admin; toggled by scripts/admin-nav.js) -->
+      <a id="nav-admin" href="admin/admin.html" style="display:none">Admin</a>
+
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
     </nav>
   </header>
@@ -151,7 +154,6 @@
           </button>
         </div>
 
-        <!-- Inline error container (auth-modals.js will also auto-inject if missing) -->
         <div class="auth-error" id="si-msg" role="alert" aria-live="polite" hidden></div>
 
         <div class="auth-actions">
@@ -170,41 +172,37 @@
         <button class="auth-close" data-auth-close aria-label="Close">✕</button>
       </header>
 
-      <form id="signup-form" novalidate>
-        <label for="su-email">Email</label>
-        <input id="su-email" type="email" inputmode="email" autocomplete="username" required />
+        <form id="signup-form" novalidate>
+          <label for="su-email">Email</label>
+          <input id="su-email" type="email" inputmode="email" autocomplete="username" required />
 
-        <label for="su-password">Password</label>
-        <div class="input-wrap">
-          <input id="su-password" type="password" autocomplete="new-password" minlength="6" required />
-          <button class="pw-toggle" type="button" aria-label="Show password" data-toggle="pw" data-target="su-password">
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-              <path
-                d="M12 5C6 5 2.73 9.11 2 12c.73 2.89 4 7 10 7s9.27-4.11 10-7c-.73-2.89-4-7-10-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10z" />
-            </svg>
-          </button>
-        </div>
+          <label for="su-password">Password</label>
+          <div class="input-wrap">
+            <input id="su-password" type="password" autocomplete="new-password" minlength="6" required />
+            <button class="pw-toggle" type="button" aria-label="Show password" data-toggle="pw" data-target="su-password">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path
+                  d="M12 5C6 5 2.73 9.11 2 12c.73 2.89 4 7 10 7s9.27-4.11 10-7c-.73-2.89-4-7-10-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10z" />
+              </svg>
+            </button>
+          </div>
 
-        <!-- Optional avatar picker (uploaded after SIGNED_IN) -->
-        <div class="field">
-          <label for="su-avatar">Profile picture (optional)</label>
-          <input id="su-avatar" type="file" accept="image/*" />
-          <small class="muted">If email confirmation is required, finish the upload in Settings after you sign
-            in.</small>
-        </div>
+          <div class="field">
+            <label for="su-avatar">Profile picture (optional)</label>
+            <input id="su-avatar" type="file" accept="image/*" />
+            <small class="muted">If email confirmation is required, finish the upload in Settings after you sign in.</small>
+          </div>
 
-        <!-- Inline error + hint containers -->
-        <div class="auth-error" id="su-msg" role="alert" aria-live="polite" hidden></div>
+          <div class="auth-error" id="su-msg" role="alert" aria-live="polite" hidden></div>
 
-        <div class="auth-actions">
-          <button id="su-btn" class="primary" type="submit">Create account</button>
-          <button class="btn" type="button" data-auth-open="signin">I have an account</button>
-          <!-- Resend verification is hidden until a sign-up attempt succeeds -->
-          <button id="su-resend" class="btn ghost" type="button" hidden>Resend verification email</button>
-        </div>
+          <div class="auth-actions">
+            <button id="su-btn" class="primary" type="submit">Create account</button>
+            <button class="btn" type="button" data-auth-open="signin">I have an account</button>
+            <button id="su-resend" class="btn ghost" type="button" hidden>Resend verification email</button>
+          </div>
 
-        <p class="auth-hint" id="su-hint" aria-live="polite"></p>
-      </form>
+          <p class="auth-hint" id="su-hint" aria-live="polite"></p>
+        </form>
     </section>
   </div>
 
@@ -213,10 +211,13 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/config.js"></script>
   <script src="scripts/sb-client.js"></script>
+
+  <!-- Show Admin link if admin -->
+  <script src="scripts/admin-nav.js"></script>
+
   <script src="scripts/auth-guard.js"></script>
   <script src="scripts/auth-modals.js"></script>
-
-
+  <script defer src="scripts/theme-toggle.js"></script>
 
   <!-- Auto-open sign-in when redirected with ?signin=1 -->
   <script>
@@ -230,8 +231,5 @@
       }
     })();
   </script>
-
-  <script defer src="scripts/theme-toggle.js"></script>
 </body>
-
 </html>

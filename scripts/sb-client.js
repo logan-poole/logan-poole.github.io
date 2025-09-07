@@ -1,66 +1,135 @@
 /* scripts/sb-client.js
    PURPOSE
-   - Create ONE Supabase v2 client and expose:
-       getSB(): Supabase client instance (or null if misconfigured)
-       hasSB(): boolean
-   SAFETY
-   - If config is missing, logs once and returns null (no spammy retries).
+   - Create ONE Supabase v2 client and expose helpers:
+       window.getSB()            -> Supabase client or null
+       window.hasSB()            -> boolean
+       window.sbAuthedFetch(url, opts) -> fetch with Bearer <JWT>
+       window.callSupabaseFn(name, { method, query, body, headers }) -> call Edge Functions with JWT
+   - Attaches the instance to window.__sb (and window.sb for convenience).
+
    REQUIREMENTS
-   - <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> is loaded first.
-   - scripts/config.js set window.PINGED_CONFIG with real values.
+   - scripts/config.js loaded first (sets window.PINGED_CONFIG = { SUPABASE_URL, SUPABASE_ANON_KEY, FUNCTIONS_BASE? })
+   - <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 */
 (function () {
-  let warnedMissing = false;
-  let warnedUmd = false;
+  let instance = null;
+  let warned = false;
 
-  function readConfig() {
-    const c = window.PINGED_CONFIG || window.PINGED || {};
-    return { url: c.SUPABASE_URL || "", key: c.SUPABASE_ANON_KEY || "" };
+  function ensureSupabaseUMD() {
+    if (window.supabase && typeof window.supabase.createClient === "function") return true;
+    if (!warned) {
+      console.error("[sb-client] @supabase/supabase-js v2 UMD not found. Include it BEFORE this script.");
+      warned = true;
+    }
+    return false;
+  }
+
+  function ensureConfig() {
+    const cfg = window.PINGED_CONFIG || window.PINGED || {};
+    const url = cfg.SUPABASE_URL;
+    const key = cfg.SUPABASE_ANON_KEY;
+    if (!url || !key) {
+      if (!warned) console.error("[sb-client] Missing SUPABASE_URL or SUPABASE_ANON_KEY in scripts/config.js");
+      warned = true;
+      return null;
+    }
+    return {
+      url,
+      key,
+      functionsBase: cfg.FUNCTIONS_BASE || "/functions/v1", // works locally (proxied) or with full functions domain
+    };
   }
 
   function create() {
-    const { url, key } = readConfig();
-    if (!url || !key) {
-      if (!warnedMissing) {
-        console.warn("[sb-client] Missing SUPABASE_URL or SUPABASE_ANON_KEY (check scripts/config.js).");
-        warnedMissing = true;
-      }
-      return null;
-    }
-    if (!window.supabase?.createClient) {
-      if (!warnedUmd) {
-        console.warn("[sb-client] supabase-js UMD not loaded yet (check script order in HTML).");
-        warnedUmd = true;
-      }
-      return null;
-    }
+    const cfg = ensureConfig();
+    if (!cfg) return null;
+    if (!ensureSupabaseUMD()) return null;
+
     try {
-      const client = window.supabase.createClient(url, key, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-        global: { headers: { "x-pinged-client": "web" } }
+      const sb = window.supabase.createClient(cfg.url, cfg.key, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          storageKey: "pinged-auth", // namespace to avoid collisions
+        },
+        global: { headers: { "x-client-info": "PingedWeb/1.0" } }
       });
-      // publish globally for scripts that expect window.__sb
-      window.__sb = client;
-      try { window.dispatchEvent(new CustomEvent("pinged:sb", { detail: { ok: true } })); } catch {}
-      return client;
+
+      // Save base for helper functions
+      sb.__functionsBase = cfg.functionsBase;
+      return sb;
     } catch (e) {
       console.error("[sb-client] createClient failed:", e);
       return null;
     }
   }
 
-  // Public API
+  // Public: get/create singleton
   window.getSB = function getSB() {
-    if (window.__sb) return window.__sb;
-    window.__sb = create();
-    return window.__sb;
+    if (instance) return instance;
+    instance = create();
+    window.__sb = instance;
+    window.sb = instance; // convenience alias in DevTools
+    return instance;
   };
 
-  window.hasSB = function hasSB() { return !!window.getSB(); };
+  // Public: quick boolean
+  window.hasSB = function hasSB() {
+    return !!window.getSB();
+  };
 
-  // On DOM ready, try once and hint if not configured
-  document.addEventListener("DOMContentLoaded", () => {
+  // Helper: fetch with JWT from current session
+  window.sbAuthedFetch = async function sbAuthedFetch(url, opts = {}) {
     const sb = window.getSB();
-    if (!sb) console.warn("[sb-client] Not initialized. Ensure config values and script order are correct.");
+    if (!sb) throw new Error("Supabase not initialised");
+    const { data } = await sb.auth.getSession();
+    const token = data?.session?.access_token;
+
+    const headers = new Headers(opts.headers || {});
+    if (!headers.has("Content-Type") && opts.body && typeof opts.body === "object") {
+      headers.set("Content-Type", "application/json");
+    }
+    if (token && !headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+
+    const init = { ...opts, headers };
+    if (init.body && headers.get("Content-Type") === "application/json" && typeof init.body !== "string") {
+      init.body = JSON.stringify(init.body);
+    }
+    return fetch(url, init);
+  };
+
+  // Helper: call an Edge Function by name with JWT and optional query/body
+  window.callSupabaseFn = async function callSupabaseFn(name, { method = "GET", query = {}, body = null, headers = {} } = {}) {
+    const sb = window.getSB();
+    if (!sb) throw new Error("Supabase not initialised");
+    const base = sb.__functionsBase || "/functions/v1";
+
+    const isAbsolute = /^https?:\/\//i.test(base);
+    // Build URL relative to the current site when base is a path, else absolute to functions domain
+    const url = new URL(isAbsolute ? `${base.replace(/\/+$/,"")}/${name}` : `${base.replace(/\/+$/,"")}/${name}`, window.location.origin);
+    Object.entries(query || {}).forEach(([k, v]) => url.searchParams.set(k, String(v)));
+
+    const res = await window.sbAuthedFetch(url.toString(), { method, headers, body });
+    const text = await res.text();
+    let json;
+    try { json = JSON.parse(text); } catch { json = { raw: text }; }
+
+    if (!res.ok) {
+      const err = new Error(json?.error || `Function ${name} failed (${res.status})`);
+      err.status = res.status;
+      err.details = json?.details || json?.raw || null;
+      throw err;
+    }
+    return json;
+  };
+
+  // Warn if not initialised once DOM is ready (helps catch script order issues)
+  document.addEventListener("DOMContentLoaded", () => {
+    if (!window.getSB()) {
+      console.warn("[sb-client] Not initialised. Check script order and config values.");
+    }
   });
 })();

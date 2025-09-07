@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reset your password</title>
+  <link rel="stylesheet" href="styles/style.css" />
+  <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
+</head>
+
+<body data-public-only="true">
+  <main class="content container">
+    <h1>Reset password</h1>
+    <p class="muted">If you arrived from a reset link, set a new password below.</p>
+
+    <form id="reset-form" class="card" style="max-width:520px;">
+      <label for="newpw">New password</label>
+      <input id="newpw" type="password" autocomplete="new-password" minlength="6" required />
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button id="save" class="primary" type="submit">Update password</button>
+        <a href="index.html" class="btn">Cancel</a>
+      </div>
+      <div id="msg" class="muted" role="status" style="margin-top:8px;"></div>
+    </form>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/config.js"></script>
+  <script src="scripts/sb-client.js"></script>
+  <script src="scripts/profile-bootstrap.js"></script>
+  <script>
+    const sb = window.__sb;
+    const msg = document.getElementById('msg');
+    const pw = document.getElementById('newpw');
+
+    const say = (t, g = false) => { msg.textContent = t || ''; msg.style.color = g ? '#9effb4' : '#9aa'; };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) say('Open the reset link from your email to continue.');
+    });
+
+    document.getElementById('reset-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const newpw = (pw.value || '').trim();
+      if (!newpw) return say('Enter a new password.');
+      try {
+        const { error } = await sb.auth.updateUser({ password: newpw });
+        if (error) throw error;
+        say('Password changed. You can close this tab and sign in.', true);
+      } catch (e) {
+        say(e.message || 'Update failed.');
+      }
+    });
+  </script>
+</body>
+
+</html>

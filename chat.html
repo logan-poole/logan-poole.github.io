@@ -1,13 +1,6 @@
 <!--
-FILE: pinged/chat.html
-WHAT’S NEW (please read first)
-- Keeps your layout but upgrades the composer to a <textarea> for better, multi-line messages.
-- Wires up exactly the IDs/classes used by chat.js and chat.css.
-- (Optional) You can override Storage bucket names by uncommenting window.PINGED_MEDIA_BUCKETS.
-
-Heads-up
-- If you still see “Bucket not found”, the buckets don’t exist yet. Create ‘dm-media’ and/or ‘chat-media’
-  in Supabase Storage (or override the names below and in SQL).
+pinged/chat.html
+- Includes ui.js so the navbar avatar dropdown + visibility toggles work.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -17,7 +10,6 @@ Heads-up
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pinged — Chat</title>
 
-  <!-- Global + page-specific styles -->
   <link rel="icon" href="assets/favicon.ico" />
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="stylesheet" href="styles/chat.css" />
@@ -31,7 +23,7 @@ Heads-up
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <!-- Public (hidden to avoid flicker on private page) -->
+      <!-- Public (hidden on protected pages to avoid flicker) -->
       <a href="index.html" data-auth="public" hidden>Home</a>
       <a href="faq.html" data-auth="public" hidden>FAQs</a>
       <a href="privacy.html" data-auth="public" hidden>Privacy</a>
@@ -40,7 +32,7 @@ Heads-up
       <!-- Protected -->
       <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
       <a href="feed.html" data-auth="protected" hidden>Feed</a>
-      <a href="map.html" data-auth="protected" aria-current="page" hidden>Map</a>
+      <a href="map.html" data-auth="protected" hidden>Map</a>
       <a href="friends.html" data-auth="protected" hidden>Friends</a>
       <a href="settings.html" data-auth="protected" hidden>Settings</a>
       <a href="chat.html" data-auth="protected" hidden>Chat</a>
@@ -71,33 +63,14 @@ Heads-up
       <div id="chat-log" class="chat-log" aria-live="polite"></div>
 
       <form id="chat-form" class="chat-composer" autocomplete="off">
-        <!-- Upgraded to textarea (multi-line, larger) -->
         <textarea id="chat-text" rows="2" placeholder="Type a message…"></textarea>
-        <br>
+        <br />
         <input id="chat-files" type="file" accept="image/*,video/*,audio/*" multiple />
         <button class="btn btn-primary" type="submit">Send</button>
       </form>
     </section>
   </main>
 
-  <!-- Create Group Modal -->
-  <div id="group-modal" class="modal" hidden>
-    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="group-title">
-      <div class="modal-head">
-        <h3 id="group-title">Start a group chat</h3>
-        <button id="group-close" class="icon-btn" aria-label="Close">✕</button>
-      </div>
-      <div class="modal-body">
-        <div id="group-friends" class="group-friends"></div>
-      </div>
-      <div class="modal-actions">
-        <button id="group-cancel" class="btn">Cancel</button>
-        <button id="group-create" class="btn btn-primary">Create</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Footer -->
   <footer class="container">
     <p>&copy; 2025 Pinged. All rights reserved.</p>
   </footer>
@@ -106,12 +79,11 @@ Heads-up
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/config.js"></script>
   <script src="scripts/sb-client.js"></script>
+  <script src="scripts/profile-bootstrap.js"></script>
   <script src="scripts/page-flags.js"></script>
   <script src="scripts/auth-guard.js"></script>
+  <script src="scripts/ui.js"></script> <!-- important for navbar -->
   <script src="scripts/auth-modals.js"></script>
-
-  <!-- Optional: override Storage bucket names (uncomment to customize) -->
-  <!-- <script>window.PINGED_MEDIA_BUCKETS = ['dm-media','chat-media'];</script> -->
 
   <!-- Page logic -->
   <script src="scripts/chat.js"></script>

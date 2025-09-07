@@ -38,6 +38,9 @@ dashboard.html
       <a href="friends.html" data-auth="protected" hidden>Friends</a>
       <a href="settings.html" data-auth="protected" hidden>Settings</a>
 
+      <!-- Admin (shown only if user has role; toggled by scripts/admin-nav.js) -->
+      <a id="nav-admin" href="admin/admin.html" style="display:none">Admin</a>
+
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
       <!-- profile dropdown injected by scripts/ui.js -->
     </nav>
@@ -61,7 +64,7 @@ dashboard.html
           <h3>Feed</h3>
           <p class="muted">Quick updates from friends and groups.</p>
         </a>
-        
+
         <a class="tile" href="chat.html" aria-label="Open Chat">
           <div class="icon">
             <img class="icon-img" src="assets/icons/chat.png" data-still="assets/icons/chat.png"
@@ -107,6 +110,16 @@ dashboard.html
           <p class="muted">Profile info and privacy controls.</p>
         </a>
 
+        <!-- Admin tile (shown only for admins by scripts/admin-nav.js) -->
+        <a class="tile" id="tile-admin" href="admin/admin.html" aria-label="Open Admin" style="display:none">
+          <div class="icon">
+            <img class="icon-img" src="assets/icons/settings.png" data-still="assets/icons/settings.png"
+              data-anim="assets/icons/settings.gif" alt="Admin icon" loading="lazy" />
+          </div>
+          <h3>Admin</h3>
+          <p class="muted">Manage users and admin tools.</p>
+        </a>
+
       </div>
     </div>
   </main>
@@ -119,12 +132,19 @@ dashboard.html
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/config.js"></script>
   <script src="scripts/sb-client.js"></script>
-  <script src="scripts/auth-guard.js"></script>
 
+  <!-- Shows Admin link/tile only if the user is admin -->
+  <script src="scripts/admin-nav.js"></script>
+
+  <script src="scripts/profile-bootstrap.js"></script>
+  <script src="scripts/auth-guard.js"></script>
 
   <script src="scripts/ui.js" defer></script>
   <script src="scripts/theme-toggle.js" defer></script>
+
+  <!-- Animate tile icons on hover/focus (whole tile) -->
   <script src="scripts/icon-swap.js" defer></script>
+
   <script src="scripts/dashboard.js" defer></script>
 </body>
 
