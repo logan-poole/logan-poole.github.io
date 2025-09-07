@@ -39,3 +39,4 @@
   window.PINGED = window.PINGED || cfg; // back-compat alias
 
 })();
+
