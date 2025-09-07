@@ -5,6 +5,7 @@
        window.hasSB()            -> boolean
        window.sbAuthedFetch(url, opts) -> fetch with Bearer <JWT>
        window.callSupabaseFn(name, { method, query, body, headers }) -> call Edge Functions with JWT
+       window.getSignedAvatarUrl(path) -> signed URL for avatars bucket
    - Attaches the instance to window.__sb (and window.sb for convenience).
 
    REQUIREMENTS
@@ -36,7 +37,8 @@
     return {
       url,
       key,
-      functionsBase: cfg.FUNCTIONS_BASE || "/functions/v1", // works locally (proxied) or with full functions domain
+      functionsBase: cfg.FUNCTIONS_BASE || "/functions/v1", // absolute domain preferred in prod; path ok for local proxy
+      buckets: cfg.BUCKETS || {},
     };
   }
 
@@ -56,8 +58,9 @@
         global: { headers: { "x-client-info": "PingedWeb/1.0" } }
       });
 
-      // Save base for helper functions
+      // Save base + buckets for helper functions
       sb.__functionsBase = cfg.functionsBase;
+      sb.__buckets = cfg.buckets;
       return sb;
     } catch (e) {
       console.error("[sb-client] createClient failed:", e);
@@ -106,10 +109,11 @@
     const sb = window.getSB();
     if (!sb) throw new Error("Supabase not initialised");
     const base = sb.__functionsBase || "/functions/v1";
-
     const isAbsolute = /^https?:\/\//i.test(base);
-    // Build URL relative to the current site when base is a path, else absolute to functions domain
-    const url = new URL(isAbsolute ? `${base.replace(/\/+$/,"")}/${name}` : `${base.replace(/\/+$/,"")}/${name}`, window.location.origin);
+
+    // Build URL: absolute base (functions domain) or relative path (local proxy)
+    const full = isAbsolute ? `${base.replace(/\/+$/, "")}/${name}` : `${base.replace(/\/+$/, "")}/${name}`;
+    const url = new URL(full, isAbsolute ? undefined : window.location.origin);
     Object.entries(query || {}).forEach(([k, v]) => url.searchParams.set(k, String(v)));
 
     const res = await window.sbAuthedFetch(url.toString(), { method, headers, body });
@@ -124,6 +128,16 @@
       throw err;
     }
     return json;
+  };
+
+  // Helper: signed avatar URL from Storage (1h)
+  window.getSignedAvatarUrl = async function getSignedAvatarUrl(path) {
+    if (!path) return null;
+    const sb = window.getSB?.();
+    const bucket = (sb?.__buckets?.AVATARS) || "avatars";
+    const { data, error } = await sb.storage.from(bucket).createSignedUrl(path, 3600);
+    if (error) { console.warn("[avatar] sign failed:", error.message); return null; }
+    return data?.signedUrl ?? null;
   };
 
   // Warn if not initialised once DOM is ready (helps catch script order issues)
