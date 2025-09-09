@@ -1,4 +1,4 @@
-<!-- friends.html — DB-backed Friends management (COMPLETE, drop-in) -->
+<!-- friends.html — DB-backed Friends management (COMPLETE, merged) -->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -7,13 +7,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pinged — Friends</title>
   <link rel="stylesheet" href="styles/style.css" />
+  <link rel="stylesheet" href="styles/friends.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
   <style>
     .muted {
       color: #9aa
     }
 
-    .friend-card {
+    .friend-card-legacy {
       display: flex;
       align-items: center;
       gap: 10px;
@@ -83,6 +84,91 @@
     <h1 class="page-title">Friends</h1>
     <p id="friends-msg" class="muted"></p>
 
+    <!-- NEW: Current Friends grid + modal + settings -->
+    <section id="current-friends-section" class="friends-section">
+      <div class="friends-header">
+        <h2>Current Friends</h2>
+        <input id="friends-filter" type="search" placeholder="Search friends…" aria-label="Search friends" />
+      </div>
+      <div id="current-friends" class="friends-grid" role="list"></div>
+    </section>
+
+    <section id="friends-management" class="friends-section">
+      <h2>Friend Settings</h2>
+      <form id="friend-settings-form" class="friend-settings" hidden>
+        <div class="friend-settings-head">
+          <img id="fs-avatar" alt="Friend avatar" width="40" height="40" />
+          <div class="fs-meta">
+            <div id="fs-name" class="fs-name"></div>
+            <div id="fs-sub" class="muted" style="font-size:12px"></div>
+          </div>
+        </div>
+
+        <div class="fs-row">
+          <label class="switch">
+            <input type="checkbox" id="fs-share-location" />
+            <span>Share my location with this friend</span>
+          </label>
+        </div>
+
+        <div class="fs-row">
+          <label class="switch">
+            <input type="checkbox" id="fs-blocked" />
+            <span>Block this friend</span>
+          </label>
+        </div>
+
+        <div class="fs-row">
+          <label>Icon</label>
+          <select id="fs-icon">
+            <option value="">Default</option>
+            <option value="⭐">⭐ Star</option>
+            <option value="📍">📍 Pin</option>
+            <option value="🔥">🔥 Flame</option>
+            <option value="👋">👋 Wave</option>
+            <option value="🎯">🎯 Target</option>
+          </select>
+        </div>
+
+        <div class="fs-row">
+          <label>Colour</label>
+          <input type="color" id="fs-colour" value="#00bfa6" />
+        </div>
+
+        <div class="fs-actions">
+          <button type="button" id="fs-save" class="btn primary">Save settings</button>
+        </div>
+      </form>
+      <div id="friend-settings-empty" class="muted" style="padding:10px">Select a friend to edit settings.</div>
+    </section>
+
+    <!-- Modal for friend actions -->
+    <dialog id="friend-action-modal" class="friend-modal">
+      <div class="fm-header">
+        <img id="fm-avatar" alt="Friend avatar" width="48" height="48" />
+        <div class="fm-meta">
+          <div id="fm-name" class="fm-name"></div>
+          <div id="fm-sub" class="muted" style="font-size:12px"></div>
+        </div>
+        <button id="fm-close" class="icon-btn" aria-label="Close">✕</button>
+      </div>
+      <div class="fm-actions">
+        <button id="fm-chat" class="action-card" title="Chat">
+          💬
+          <span>Chat</span>
+        </button>
+        <button id="fm-map" class="action-card" title="View location">
+          🗺️
+          <span>Map</span>
+        </button>
+        <button id="fm-settings" class="action-card" title="Friend settings">
+          ⚙️
+          <span>Settings</span>
+        </button>
+      </div>
+    </dialog>
+    <!-- /NEW -->
+
     <!-- Add by username (exact match) -->
     <section class="card">
       <h3>Add a friend</h3>
@@ -105,7 +191,7 @@
       <div id="friends-outgoing"></div>
     </section>
 
-    <!-- Accepted friends -->
+    <!-- Accepted friends (legacy list your existing script populates) -->
     <section class="card">
       <h3>My Friends</h3>
       <div id="friends-accepted"></div>
@@ -124,14 +210,24 @@
   <script src="scripts/page-flags.js"></script>
   <script src="scripts/auth-guard.js"></script>
 
+  <!-- Optional config tweaks for avatar column/table names -->
+  <script>
+    window.PINGED_CONFIG = Object.assign({
+      TABLES: { PROFILES: "profiles", FRIENDSHIPS: "friendships" },
+      PROFILE: { AVATAR_COLUMN: "profile_pic" } // or "avatar_url" if that's your column
+    }, window.PINGED_CONFIG || {});
+  </script>
+
   <!-- UI -->
   <script src="scripts/ui.js" defer></script>
   <script src="scripts/theme-toggle.js" defer></script>
 
-  <!-- Friends (DB-backed) -->
+  <!-- Your existing friends logic (requests/accepted lists) -->
   <script src="scripts/friends.js" defer></script>
-  <!-- Optional: badge on ALL pages; include this file site-wide if you want the red dot -->
   <script src="scripts/friends-badge.js" defer></script>
+
+  <!-- NEW: friends grid + modal + settings (works alongside your existing scripts) -->
+  <script src="scripts/friends-ui.js" defer></script>
 </body>
 
 </html>
