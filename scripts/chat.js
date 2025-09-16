@@ -1,6 +1,6 @@
 /* FILE: scripts/chat.js  (schema-agnostic + realtime)
    - No hard-coded avatar col; picks from common keys
-   - start_dm via JSONB (and fallbacks)
+   - start_dm: single canonical call (p_other_user_id), legacy ensure_dm as fallback
    - Detects message author column on read; tries multiple on insert:
      author_id → sender_id → user_id → from_user_id
    - Default avatar path fixed to assets/avatar-default.png
@@ -14,30 +14,26 @@
   const $ = (s, r = document) => r.querySelector(s);
 
   // DOM
-  const friendsEl = $("#friends-list");
-  const searchEl = $("#friend-search");
-  const newGroupBtn = $("#new-group-btn");
-  const addPeopleBtn = $("#add-people-btn");
-  const participantsEl = $("#participants");
-  const logEl = $("#chat-log");
-  const formEl = $("#chat-form");
-  const textEl = $("#chat-text");
-  const filesEl = $("#chat-files");
+  const logEl         = $("#chat-log");
+  const formEl        = $("#chat-form");
+  const textEl        = $("#chat-text");
+  const filesEl       = $("#chat-files");
+  const sendBtn       = $("#chat-send");
+  const addPeopleBtn  = $("#add-people-btn");
 
-  // Modal (create/add people)
-  const modal = $("#group-modal");
-  const modalClose = $("#group-close");
-  const modalCancel = $("#group-cancel");
-  const modalCreate = $("#group-create");
-  const modalFriends = $("#group-friends");
+  // Group modal
+  const modal         = $("#group-modal");
+  const modalClose    = $("#group-close");
+  const modalCancel   = $("#group-cancel");
+  const modalCreate   = $("#group-create");
+  const newGroupBtn   = $("#new-group-btn");
+  const modalFriends  = $("#group-friends");
 
-  // State
-  let sb = null, me = null;
-  let activeConv = null;
-  let channel = null;
-  let allFriends = [];
-  const seenMsgIds = new Set();
+  // Sidebar
+  const searchEl      = $("#friend-search");
+  const friendsEl     = $("#friends-list");
 
+  // Config (from scripts/config.js); allow overrides via PINGED_CONFIG
   const CFG = window.PINGED_CONFIG || window.PINGED || {};
   const T = Object.assign({
     PROFILES: "profiles",
@@ -80,103 +76,25 @@
     });
   }
 
-  async function init() {
-    try { assertSB(); } catch (e) { console.error(e.message); return; }
+  // ---- State ----
+  let sb = null, me = null;
+  let activeConv = null;
+  let channel = null;
+  const seenMsgIds = new Set();
+  let allFriends = [];
 
-    const { data: { user }, error } = await sb.auth.getUser();
-    if (error || !user) {
-      me = null;
-      if (logEl) logEl.innerHTML = `<div class="muted" style="padding:10px">Please sign in.</div>`;
-      return;
-    }
-    me = user;
-
-    await ensureRealtimeAuth();
-
-    // UI events
-    formEl?.addEventListener("submit", onSend);
-    newGroupBtn?.addEventListener("click", openGroupModal);
-    addPeopleBtn?.addEventListener("click", () => openGroupModal(activeConv));
-    modalClose?.addEventListener("click", closeGroupModal);
-    modalCancel?.addEventListener("click", closeGroupModal);
-    modalCreate?.addEventListener("click", createGroupFromModal);
-    searchEl?.addEventListener("input", () => renderFriends(searchEl.value));
-
-    // Auto-open via ?friend=<uuid>
-    const fid = new URL(location.href).searchParams.get("friend");
-    if (fid) await openDM(fid);
-
-    await loadFriends();
-  }
-
-  // ---- Friends (via list_friends RPC if present) ----
-  async function loadFriends() {
-    let rows = [];
-    try {
-      const { data } = await sb.rpc("list_friends");
-      rows = (data || []).map(p => ({
-        id: p.id,
-        username: p.username,
-        display_name: p.display_name,
-        avatar: p.profile_pic || p.avatar_url || null
-      }));
-    } catch {
-      rows = [];
-    }
-    allFriends = rows || [];
-    renderFriends();
-  }
-
-  function renderFriends(filterText = "") {
-    if (!friendsEl) return;
-    const q = (filterText || "").trim().toLowerCase();
-
-    const items = (allFriends || [])
-      .filter(f => {
-        const hay = [f.username, f.display_name].filter(Boolean).join(" ").toLowerCase();
-        return !q || hay.includes(q);
-      })
-      .sort((a, b) => (a.display_name || a.username || "")
-        .localeCompare(b.display_name || b.username || ""));
-
-    friendsEl.innerHTML = "";
-    if (!items.length) {
-      friendsEl.innerHTML = `<div class="muted" style="padding:10px">No friends matched.</div>`;
-      return;
-    }
-
-    items.forEach(f => {
-      const btn = document.createElement("button");
-      btn.className = "friend";
-      btn.type = "button";
-      btn.innerHTML = `
-        <img src="${f.avatar || 'assets/avatar-default.png'}" width="32" height="32" style="border-radius:50%" alt="">
-        <div class="meta">
-          <div class="name">${f.display_name || (f.username ? '@'+f.username : 'Friend')}</div>
-          <div class="sub muted">${f.username ? '@'+f.username : ''}</div>
-        </div>`;
-      btn.addEventListener("click", () => openDM(f.id));
-      friendsEl.appendChild(btn);
-    });
-  }
-
-  // ---- DM creation via JSONB RPC (with fallbacks) ----
+  // ---- RPC: canonical DM opener ----
   async function tryDMRPC(otherUserId) {
-    const attempts = [
-      ["start_dm", { params: { p_other: otherUserId } }],
-      ["start_dm", { p_other: otherUserId }],
-      ["start_dm", { p_other_user_id: otherUserId }],
-      ["start_dm", { other_user_id: otherUserId }],
-      ["start_dm", { other: otherUserId }],
-      ["ensure_dm", { p_other: otherUserId }],
-      ["create_or_get_dm", { p_other: otherUserId }],
-    ];
-    for (const [fn, args] of attempts) {
-      try {
-        const { data, error } = await sb.rpc(fn, args);
-        if (!error && data) return typeof data === "string" ? data : data?.id || data;
-      } catch {}
-    }
+    // Single canonical call; your DB has start_dm(p_other_user_id uuid) => uuid
+    try {
+      const { data, error } = await sb.rpc("start_dm", { p_other_user_id: otherUserId });
+      if (!error && data) return typeof data === "string" ? data : data?.id || data;
+    } catch {}
+    // Fallback (only if you also kept a legacy ensure_dm)
+    try {
+      const { data, error } = await sb.rpc("ensure_dm", { p_other: otherUserId });
+      if (!error && data) return typeof data === "string" ? data : data?.id || data;
+    } catch {}
     return null;
   }
 
@@ -219,99 +137,32 @@
   }
 
   async function renderParticipants(conversationId) {
-    if (!participantsEl) return;
+    try {
+      const { data: rows, error } = await sb
+        .from(T.PARTICIPANTS)
+        .select("user_id")
+        .eq("conversation_id", conversationId);
+      if (error) throw error;
+      const ids = (rows || []).map(r => r.user_id).filter(Boolean);
+      const profiles = await fetchProfilesByIds(ids);
+      const youId = me?.id;
 
-    const { data: parts, error } = await sb
-      .from(T.PARTICIPANTS)
-      .select("user_id")
-      .eq("conversation_id", conversationId);
-    if (error) { console.error("[chat] participants error", error); return; }
+      const pills = (profiles || [])
+        .sort((a, b) => (a.display_name || a.username || "")
+          .localeCompare(b.display_name || b.username || ""))
+        .map(p => {
+          const label = p.user_id === youId || p.id === youId ? "You" : labelFromProfile(p);
+          return `<span class="pill"><img src="${avatarFromAny(p)}" width="16" height="16" style="border-radius:50%"> ${label}</span>`;
+        });
 
-    const ids = (parts || []).map(r => r.user_id);
-    if (!ids.length) { participantsEl.innerHTML = ""; return; }
-
-    let profs = [];
-    try { profs = await fetchProfilesByIds(ids); }
-    catch (e2) { console.error("[chat] participant profiles error", e2); return; }
-
-    participantsEl.innerHTML = "";
-    (profs || []).forEach(p => {
-      const chip = document.createElement("span");
-      chip.className = "chip";
-      chip.innerHTML =
-        `<img src="${avatarFromAny(p)}" width="20" height="20" style="border-radius:50%;vertical-align:middle;margin-right:6px"> ${labelFromProfile(p)}`;
-      participantsEl.appendChild(chip);
-    });
+      const holder = $("#participants");
+      if (holder) holder.innerHTML = pills.join(" ");
+    } catch (e) {
+      console.warn("[chat] participants error", e?.message);
+    }
   }
 
   // ---- Messages ----
-  async function resolveMediaUrl(pathOrUrl) {
-    if (!pathOrUrl) return null;
-    if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
-    const bucket = (CFG.BUCKETS && CFG.BUCKETS.DM_MEDIA) || "dm-media";
-    const { data, error } = await sb.storage.from(bucket).createSignedUrl(pathOrUrl, 60 * 60);
-    if (error) { console.warn("[chat] signed url error", error.message); return null; }
-    return data?.signedUrl || null;
-  }
-
-  function messageBubbleSkeleton(msg, authorProfile) {
-    const authorId = getMsgAuthorId(msg);
-    const mine = authorId === me.id;
-
-    const wrap = document.createElement("div");
-    wrap.className = `msg ${mine ? "mine" : "theirs"}`;
-
-    if (!mine) {
-      const avatar = document.createElement("img");
-      avatar.src = avatarFromAny(authorProfile);
-      avatar.alt = "";
-      avatar.width = 28; avatar.height = 28; avatar.style.borderRadius = "50%";
-      wrap.appendChild(avatar);
-    }
-
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-
-    if (msg.body || msg.content || msg.text) {
-      const p = document.createElement("p");
-      p.textContent = msg.body ?? msg.content ?? msg.text ?? "";
-      bubble.appendChild(p);
-    }
-
-    const mediaBox = document.createElement("div");
-    mediaBox.className = "media-box";
-    bubble.appendChild(mediaBox);
-
-    const ts = document.createElement("div");
-    ts.className = "ts";
-    ts.textContent = new Date(msg.created_at || msg.inserted_at || Date.now()).toLocaleString();
-    bubble.appendChild(ts);
-
-    wrap.appendChild(bubble);
-    return { wrap, mediaBox };
-  }
-
-  async function renderOneMessage(m, authorProfile) {
-    const { wrap, mediaBox } = messageBubbleSkeleton(m, authorProfile);
-    if (m.media_url || m.attachment_url) {
-      const url = await resolveMediaUrl(m.media_url || m.attachment_url);
-      if (url) {
-        if ((m.media_type || "").startsWith("video/")) {
-          const v = document.createElement("video");
-          v.src = url; v.controls = true; v.preload = "metadata";
-          v.style.maxWidth = "100%"; v.style.borderRadius = "8px"; v.style.marginTop = "6px";
-          mediaBox.appendChild(v);
-        } else {
-          const i = document.createElement("img");
-          i.src = url; i.alt = ""; i.loading = "lazy";
-          i.style.maxWidth = "100%"; i.style.borderRadius = "8px"; i.style.marginTop = "6px";
-          mediaBox.appendChild(i);
-        }
-      }
-    }
-    return wrap;
-  }
-
   async function loadMessages(conversationId) {
     if (!logEl) return;
     logEl.innerHTML = '<div class="muted" style="padding:10px">Loading…</div>';
@@ -322,18 +173,27 @@
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true })
       .limit(500);
-    if (error) { console.error("[chat] load messages error", error); return; }
+    if (error) {
+      console.error("[chat] load messages error", error);
+      logEl.innerHTML = `<div class="error" style="padding:10px">Couldn't load messages (${error.code || ""}).</div>`;
+      return;
+    }
 
     const authorIds = [...new Set((rows || []).map(getMsgAuthorId).filter(Boolean))];
     const authorMap = {};
     if (authorIds.length) {
       try {
         const { data } = await sb.from(T.PROFILES).select("*").in("user_id", authorIds);
-        (data || []).forEach(p => { authorMap[p.user_id] = p; });
+        (data || []).forEach(p => { authorMap[p.user_id || p.id] = p; });
       } catch {
         const { data } = await sb.from(T.PROFILES).select("*").in("id", authorIds);
         (data || []).forEach(p => { authorMap[p.id] = p; });
       }
+    }
+
+    if (!rows || !rows.length) {
+      logEl.innerHTML = '<div class="muted" style="padding:10px">No messages yet — say hi! ✨</div>';
+      return;
     }
 
     logEl.innerHTML = "";
@@ -393,14 +253,14 @@
     });
     const putRes = await fetch(data.uploadUrl, {
       method: "PUT",
-      headers: { "content-type": data.contentType || file.type || "application/octet-stream" },
+      headers: { "Content-Type": file.type || "application/octet-stream" },
       body: file
     });
-    if (!putRes.ok) throw new Error(`Upload failed (${putRes.status})`);
-    return { path: data.path, type: file.type || null };
+    if (!putRes.ok) throw new Error("Upload failed");
+    return { path: data.storagePath, type: file.type || null };
   }
 
-  // ---- Send (with insert fallbacks for author column) ----
+  // ---- Send ----
   async function onSend(e) {
     e.preventDefault();
     if (!activeConv) return alert("Open a conversation first.");
@@ -418,30 +278,19 @@
       }
     }
 
-    // Optimistic
-    if (logEl) {
-      const optimistic = {
-        id: "optimistic-" + Date.now(),
-        conversation_id: activeConv,
-        author_id: me.id, // for rendering; real row may use different col
-        body: body || null,
-        media_url: media_path,
-        media_type: media_type,
-        created_at: new Date().toISOString()
-      };
-      seenMsgIds.add(optimistic.id);
-      renderOneMessage(optimistic, { username: "you", display_name: "You" })
-        .then(node => { logEl.appendChild(node); logEl.scrollTop = logEl.scrollHeight; });
-    }
-
-    const base = {
+    // optimistic bubble
+    const optimistic = {
+      id: `tmp-${Date.now()}`,
       conversation_id: activeConv,
-      body: body || null,
-      media_url: media_path,
-      media_type
+      created_at: new Date().toISOString(),
+      body, media_path, media_type
     };
+    seenMsgIds.add(optimistic.id);
+    const node = await renderOneMessage({ ...optimistic, author_id: me.id }, { id: me.id, user_id: me.id, display_name: "You", username: me.email?.split("@")[0] });
+    logEl && logEl.appendChild(node);
+    logEl && (logEl.scrollTop = logEl.scrollHeight);
 
-    // Try different author column names
+    const base = { conversation_id: activeConv, created_at: new Date().toISOString(), body, media_path, media_type };
     const variants = [
       { ...base, author_id: me.id },
       { ...base, sender_id: me.id },
@@ -456,17 +305,39 @@
       lastError = error;
       const msg = (error.message || "").toLowerCase();
       if (
-        !(msg.includes("null value in column") || msg.includes("does not exist") || error.code === "23502" || error.code === "42703")
+        !(msg.includes("null value in column") || msg.includes("...not exist") || error.code === "23502" || error.code === "42703")
       ) break;
     }
 
     if (lastError) {
-      console.error("[chat] send error", lastError);
-      alert("Could not send message. Check RLS and column names (author/sender).");
+      console.error("[chat] send error", lastError)
+      alert("Could not send. Check message table columns/policy.");
+    } else {
+      textEl && (textEl.value = "");
+      filesEl && (filesEl.value = "");
     }
+  }
 
-    textEl && (textEl.value = "");
-    filesEl && (filesEl.value = "");
+  // ---- Render one message ----
+  async function renderOneMessage(m, author) {
+    const wrap = document.createElement("div");
+    wrap.className = "msg";
+    const mine = (getMsgAuthorId(m) === me?.id);
+    if (mine) wrap.classList.add("mine");
+    const pic = avatarFromAny(author);
+    wrap.innerHTML = `
+      <img class="avatar" src="${pic}" width="36" height="36" alt="">
+      <div class="bubble">
+        <div class="meta">
+          <span class="name">${mine ? "You" : (labelFromProfile(author) || "User")}</span>
+          <span class="time">${new Date(m.created_at || Date.now()).toLocaleString()}</span>
+        </div>
+        ${m.body ? `<div class="body"></div>` : ""}
+        ${m.media_path ? `<div class="media"><a href="${m.media_path}" target="_blank" rel="nofollow noopener">Attachment</a></div>` : ""}
+      </div>
+    `;
+    if (m.body) wrap.querySelector(".body").textContent = m.body;
+    return wrap;
   }
 
   // ---- Groups ----
@@ -489,31 +360,33 @@
         modalFriends.appendChild(li);
       });
     }
-    modal.removeAttribute("hidden");
+    modal.hidden = false;
   }
-  function closeGroupModal() { modal?.setAttribute("hidden", ""); }
+
+  function closeGroupModal() {
+    if (modal) modal.hidden = true;
+  }
 
   async function createGroupFromModal() {
-    if (!modal) return;
+    if (!modal || !modalFriends) return;
     const mode = modal.dataset.mode || "create";
-    const selected = Array.from(modalFriends.querySelectorAll("input[type=checkbox]:checked")).map(i => i.value);
-    if (!selected.length) return alert("Select at least one friend.");
+    const selected = Array.from(modalFriends.querySelectorAll("input[type=checkbox]:checked")).map(i => i.value).filter(Boolean);
+    if (!selected.length) return closeGroupModal();
 
     if (mode === "create") {
-      const { data: conv, error: e1 } = await sb
-        .from(T.CONVERSATIONS)
-        .insert({ kind: 'group', is_group: true })
-        .select("id").single();
+      // Create new conversation row (group)
+      const { data: conv, error: e1 } = await sb.from(T.CONVERSATIONS).insert({ kind: "group", is_group: true, created_by: me.id }).select().single();
       if (e1) { console.error("[chat] create group failed", e1); return; }
-      const convId = conv.id;
-      const inserts = [{ conversation_id: convId, user_id: me.id, role: "admin" }]
-        .concat(selected.map(uid => ({ conversation_id: convId, user_id: uid, role: "member" })));
-      const { error: e2 } = await sb.from(T.PARTICIPANTS).insert(inserts);
+
+      const rows = [me.id, ...selected].map(uid => ({ conversation_id: conv.id, user_id: uid, role: "member" }));
+      const { error: e2 } = await sb.from(T.PARTICIPANTS).insert(rows);
       if (e2) { console.error("[chat] add members failed", e2); return; }
+
       closeGroupModal();
-      await enterConversation(convId);
+      await enterConversation(conv.id);
     } else {
-      const convId = modal.dataset.conversationId;
+      // Add to existing
+      const convId = modal.dataset.conversationId || null;
       if (!convId) return;
       const inserts = selected.map(uid => ({ conversation_id: convId, user_id: uid, role: "member" }));
       const { error: e3 } = await sb.from(T.PARTICIPANTS).insert(inserts);
@@ -525,6 +398,80 @@
 
   // expose for other scripts
   window.PINGED_CHAT = Object.assign(window.PINGED_CHAT || {}, { openDM });
+
+  // ---- Friends sidebar ----
+  async function loadFriends() {
+    let rows = [];
+    try {
+      const { data } = await sb.rpc("list_friends");
+      rows = (data || []).map(p => ({
+        id: p.id,
+        username: p.username,
+        display_name: p.display_name,
+        avatar: p.profile_pic || p.avatar_url || null
+      }));
+    } catch {
+      rows = [];
+    }
+    allFriends = rows || [];
+    renderFriends(searchEl?.value || "");
+  }
+
+  function renderFriends(filterText = "") {
+    const q = (filterText || "").trim().toLowerCase();
+    const items = (allFriends || [])
+      .filter(f => !q || (f.display_name || f.username || "").toLowerCase().includes(q))
+      .sort((a, b) => (a.display_name || a.username || "")
+        .localeCompare(b.display_name || b.username || ""));
+
+    friendsEl.innerHTML = "";
+    if (!items.length) {
+      friendsEl.innerHTML = `<div class="muted" style="padding:10px">No friends matched.</div>`;
+      return;
+    }
+
+    items.forEach(f => {
+      const btn = document.createElement("button");
+      btn.className = "friend";
+      btn.type = "button";
+      btn.innerHTML = `
+        <img src="${f.avatar || 'assets/avatar-default.png'}" width="28" height="28" style="border-radius:50%">
+        <span>${f.display_name || (f.username ? '@'+f.username : 'Friend')}</span>
+      `;
+      btn.addEventListener("click", () => openDM(f.id));
+      friendsEl.appendChild(btn);
+    });
+  }
+
+  // ---- Boot ----
+  async function init() {
+    try { assertSB(); } catch (e) { console.error(e.message); return; }
+
+    const { data: { user }, error } = await sb.auth.getUser();
+    if (error || !user) {
+      me = null;
+      if (logEl) logEl.innerHTML = `<div class="muted" style="padding:10px">Please sign in.</div>`;
+      return;
+    }
+    me = user;
+
+    await ensureRealtimeAuth();
+
+    // UI events
+    formEl?.addEventListener("submit", onSend);
+    newGroupBtn?.addEventListener("click", openGroupModal);
+    addPeopleBtn?.addEventListener("click", () => openGroupModal(activeConv));
+    modalClose?.addEventListener("click", closeGroupModal);
+    modalCancel?.addEventListener("click", closeGroupModal);
+    modalCreate?.addEventListener("click", createGroupFromModal);
+    searchEl?.addEventListener("input", () => renderFriends(searchEl.value));
+
+    // Auto-open via ?friend=<uuid>
+    const fid = new URL(location.href).searchParams.get("friend");
+    if (fid) await openDM(fid);
+
+    await loadFriends();
+  }
 
   document.addEventListener("DOMContentLoaded", init);
 })();
