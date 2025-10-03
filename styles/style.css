@@ -253,12 +253,6 @@ section {
   display: inline-block;
 }
 
-.profile-menu {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 
 .nav-name {
   color: #fff;
@@ -864,6 +858,19 @@ button.primary:hover,
   background: rgba(0, 194, 168, .18);
   border: 1px solid rgba(0, 0, 0, .06);
   vertical-align: middle;
+}
+
+/* Make the top-right role pill readable on the gradient header */
+.topnav .role-pill {
+  background: #ffffff;
+  color: var(--accent-ink);
+  border: 1px solid rgba(0, 0, 0, .06);
+}
+
+[data-theme='dark'] .topnav .role-pill {
+  background: #0f1717;
+  color: #bff7ee;
+  border-color: rgba(255,255,255,.22);
 }
 
 /* Dropdown niceties */
@@ -1552,3 +1559,31 @@ html:has(#friendModal[open]) {
 
 /* Optional */
 .dropdown { top: calc(100% + 8px); }
+
+/* Make the top-right role pill readable on the gradient header */
+.topnav .role-pill {
+  background: #ffffff;
+  color: var(--accent-ink);
+  border: 1px solid rgba(0, 0, 0, .06);
+}
+
+[data-theme='dark'] .topnav .role-pill {
+  background: #0f1717;
+  color: #bff7ee;
+  border-color: rgba(255,255,255,.22);
+}
+
+/* Force-hide legacy theme toggle in the header – we show it in the dropdown */
+.topnav #themeToggle { display: none !important; }
+
+/* Role pill in the top nav */
+.topnav .role-pill {
+  background: #ffffff;
+  color: var(--accent-ink);
+  border: 1px solid rgba(0,0,0,.06);
+}
+[data-theme='dark'] .topnav .role-pill {
+  background: #0f1717;
+  color: #bff7ee;
+  border-color: rgba(255,255,255,.22);
+}
