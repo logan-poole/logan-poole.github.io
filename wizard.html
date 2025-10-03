@@ -51,12 +51,34 @@
     </section>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="scripts/config.js"></script>
-  <script src="scripts/sb-client.js"></script>
-  <script src="scripts/profile-bootstrap.js"></script>
-  <script src="scripts/page-flags.js"></script>
-  <script src="scripts/auth-guard.js"></script>
+<!-- 1) App config -->
+<script src="scripts/config.js"></script>
+
+<!-- 2) Supabase UMD (must be before sb-client.js for sync init) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- 3) Single Supabase client -->
+<script src="scripts/sb-client.js"></script>
+
+<!-- 4) Optional helpers you actually use -->
+<script src="scripts/profile-bootstrap.js"></script>
+<script src="scripts/page-flags.js"></script>
+
+<!-- 5) Auth guard / modals -->
+<script src="scripts/auth-guard.js"></script>
+<script src="scripts/auth-modals.js"></script>
+
+<!-- 6) Shared header/nav + UI -->
+<script src="scripts/scripts.js"></script>
+
+<!-- 7) Page feature (only what’s needed) -->
+<!-- Friends page: -->
+<script src="scripts/friends.js"></script>
+<script src="scripts/friends-ui.js"></script>
+
+<!-- 8) Theme toggle -->
+<script defer src="scripts/theme-toggle.js"></script>
+
   <script src="scripts/wizard.js"></script>
 </body>
 </html>

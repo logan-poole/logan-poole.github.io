@@ -1,7 +1,5 @@
-<!--
-pinged/chat.html
-- Includes ui.js so the navbar avatar dropdown + visibility toggles work.
--->
+<!-- chat.html — Pinged Chat
+     Author: Logan Poole — 30083609 -->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -9,21 +7,18 @@ pinged/chat.html
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pinged — Chat</title>
-
-  <link rel="icon" href="assets/favicon.ico" />
-  <link rel="stylesheet" href="styles/style.css" />
-  <link rel="stylesheet" href="styles/chat.css" />
+  <link rel="stylesheet" href="styles/style.css?v=13" />
+  <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
 </head>
 
-<body>
-  <!-- Top Navbar -->
+<body class="chat-page" data-require-auth="true">
   <header class="topnav">
     <a href="dashboard.html" class="nav-left" style="text-decoration:none;">
       <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
     <nav class="nav-right">
-      <!-- Public (hidden on protected pages to avoid flicker) -->
+      <!-- Public -->
       <a href="index.html" data-auth="public" hidden>Home</a>
       <a href="faq.html" data-auth="public" hidden>FAQs</a>
       <a href="privacy.html" data-auth="public" hidden>Privacy</a>
@@ -35,38 +30,26 @@ pinged/chat.html
       <a href="map.html" data-auth="protected" hidden>Map</a>
       <a href="friends.html" data-auth="protected" hidden>Friends</a>
       <a href="settings.html" data-auth="protected" hidden>Settings</a>
-      <a href="chat.html" data-auth="protected" hidden>Chat</a>
-      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
+      <a href="chat.html" data-auth="protected" hidden aria-current="page">Chat</a>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme" data-auth="protected"
+        hidden>🌓</button>
     </nav>
   </header>
 
-  <!-- Two-pane Chat Layout -->
-  <main class="container chat-layout" data-require-auth="true">
-    <!-- Sidebar (Friends List) -->
-    <aside class="sidebar">
+  <main class="container chat-layout">
+    <aside class="sidebar" aria-label="Conversations">
       <div class="sidebar-head">
-        <input id="friend-search" type="search" placeholder="Search friends…" />
-        <button id="new-group-btn" class="btn btn-secondary btn-sm">New Group</button>
+        <input id="friend-search" type="search" placeholder="Search friends…" aria-label="Search friends" />
+        <button id="new-group-btn" class="btn btn-secondary btn-sm" type="button">New Group</button>
       </div>
-      <div id="friends-list" class="friends-list" aria-label="Friends"></div>
+      <div id="friends-list" class="friends-list" aria-live="polite"></div>
     </aside>
 
-    <!-- Chat Panel -->
-    <section class="chat-panel">
-      <div class="chat-header">
-        <div id="participants" class="participants"></div>
-        <div class="chat-actions">
-          <button id="add-people-btn" class="btn btn-secondary btn-sm" disabled>Add People</button>
-        </div>
-      </div>
-
-      <div id="chat-log" class="chat-log" aria-live="polite"></div>
-
+    <section class="conversation" aria-label="Conversation">
+      <div id="chat-log" class="chat-log"></div>
       <form id="chat-form" class="chat-composer" autocomplete="off">
-        <textarea id="chat-text" rows="2" placeholder="Type a message…"></textarea>
-        <br />
-        <input id="chat-files" type="file" accept="image/*,video/*,audio/*" multiple />
-        <button class="btn btn-primary" type="submit">Send</button>
+        <input id="chat-text" type="text" placeholder="Type a message…" aria-label="Message" />
+        <button class="btn" type="submit">Send</button>
       </form>
     </section>
   </main>
@@ -75,21 +58,18 @@ pinged/chat.html
     <p>&copy; 2025 Pinged. All rights reserved.</p>
   </footer>
 
-  <!-- Libraries + core app scripts -->
+  <!-- SCRIPTS (ORDER MATTERS) -->
+  <script src="scripts/config.js?v=13"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="scripts/config.js"></script>
-  <script src="scripts/sb-client.js"></script>
-  <script src="scripts/profile-bootstrap.js"></script>
-  <script src="scripts/page-flags.js"></script>
-  <script src="scripts/auth-guard.js"></script>
-  <script src="scripts/ui.js"></script> <!-- important for navbar -->
-  <script src="scripts/auth-modals.js"></script>
-
-  <!-- Page logic -->
-  <script src="scripts/chat.js"></script>
-
-  <!-- Theme toggle -->
-  <script defer src="scripts/theme-toggle.js"></script>
+  <script src="scripts/sb-client.js?v=13"></script>
+  <script src="scripts/auth-guard.js?v=13"></script>
+  <script src="scripts/page-flags.js?v=13" defer></script>
+  <script src="scripts/profile-bootstrap.js?v=13" defer></script>
+  <script src="scripts/auth-modals.js?v=13"></script>
+  <script src="scripts/scripts.js?v=13" defer></script>
+  <script src="scripts/theme-toggle.js?v=13" defer></script>
+  <script src="scripts/reactions.js?v=13" defer></script>
+  <script src="scripts/chat.js?v=13" defer></script>
 </body>
 
 </html>

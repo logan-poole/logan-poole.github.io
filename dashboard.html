@@ -38,10 +38,11 @@ dashboard.html
       <a href="friends.html" data-auth="protected" hidden>Friends</a>
       <a href="settings.html" data-auth="protected" hidden>Settings</a>
 
-      <!-- Admin (shown only if user has role; toggled by scripts/admin-nav.js) -->
+      <!-- Admin (shown only if user has role; toggled by admin-nav.js / ui.js badge) -->
       <a id="nav-admin" href="admin/admin.html" style="display:none">Admin</a>
 
-      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme" data-auth="protected" hidden>🌓</button>
+
       <!-- profile dropdown injected by scripts/ui.js -->
     </nav>
   </header>
@@ -128,24 +129,36 @@ dashboard.html
     <p>&copy; 2025 Pinged. All rights reserved.</p>
   </footer>
 
-  <!-- Scripts (order matters) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- ===================== SCRIPTS (ORDER MATTERS) ===================== -->
+
+  <!-- 1) App config -->
   <script src="scripts/config.js"></script>
+
+  <!-- 2) Supabase UMD (must load before sb-client.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- 3) Single Supabase client -->
   <script src="scripts/sb-client.js"></script>
 
-  <!-- Shows Admin link/tile only if the user is admin -->
-  <script src="scripts/admin-nav.js"></script>
+  <!-- 4) Page flags / profile bootstrap (optional) -->
+  <script src="scripts/page-flags.js" defer></script>
+  <script src="scripts/profile-bootstrap.js" defer></script>
 
-  <script src="scripts/profile-bootstrap.js"></script>
+  <!-- 5) Auth guard (NO defer — define guard immediately) -->
   <script src="scripts/auth-guard.js"></script>
 
+  <!-- 6) Inside-page header/nav -->
   <script src="scripts/ui.js" defer></script>
+
+  <!-- 7) Admin nav toggles -->
+  <script src="scripts/admin-nav.js" defer></script>
+
+  <!-- 8) Theme toggle -->
   <script src="scripts/theme-toggle.js" defer></script>
 
-  <!-- Animate tile icons on hover/focus (whole tile) -->
-  <script src="scripts/icon-swap.js" defer></script>
-
+  <!-- 9) Page boot -->
   <script src="scripts/dashboard.js" defer></script>
-</body>
 
+
+</body>
 </html>

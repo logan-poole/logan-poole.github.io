@@ -1,278 +1,276 @@
-/* FILE: scripts/friends-ui.js
-   Current Friends grid + friend action modal (Chat/Map/Settings) + Friend Settings form.
-   - Tries RPC list_friends(); falls back to friendships + profiles.
-   - Chat action: tries window.PINGED_CHAT.openDM(friendId); else navigates to chat.html?friend=<id>.
-   - Settings save: tries to update friendships columns; else stores locally.
+/* Author: Logan Poole — 30083609
+   FILE: /scripts/friends-ui.js
+   Purpose: Load & render friends using canonical schema:
+            friendships(user_low, user_high, requester_id, status)
+            profiles(id, username, display_name, avatar_url)
 */
-(function() {
-  const $  = (s, r=document)=>r.querySelector(s);
 
-  const CFG = window.PINGED_CONFIG || window.PINGED || {};
-  const T = Object.assign({ PROFILES:"profiles", FRIENDSHIPS:"friendships" }, CFG.TABLES || {});
-  const AVATAR_COL = (CFG.PROFILE && CFG.PROFILE.AVATAR_COLUMN) || "profile_pic";
+(function () {
+  'use strict';
 
-  // DOM
-  const gridEl   = $("#current-friends");
-  const filterEl = $("#friends-filter");
+  // ------- Utilities -------
+  const $ = (sel, r = document) => r.querySelector(sel);
 
-  const fsForm    = $("#friend-settings-form");
-  const fsEmpty   = $("#friend-settings-empty");
-  const fsAvatar  = $("#fs-avatar");
-  const fsName    = $("#fs-name");
-  const fsSub     = $("#fs-sub");
-  const fsShare   = $("#fs-share-location");
-  const fsBlocked = $("#fs-blocked");
-  const fsIcon    = $("#fs-icon");
-  const fsColour  = $("#fs-colour");
-  const fsSave    = $("#fs-save");
+  // Prefer these containers if they exist (in this order)
+  const acceptedEl = $('#friends-accepted') || $('#friends-list') || $('#friends') || null;
+  const incomingEl = $('#friends-incoming') || null;
+  const outgoingEl = $('#friends-outgoing') || null;
+  const filterEl   = $('#friends-filter') || null;
+  const addForm    = $('#friend-add-form') || null;
+  const addInput   = $('#friend-username') || null;
+  const emptyEl    = $('#friends-empty') || null;
+  const errEl      = $('#friends-error') || null;
 
-  const modal     = $("#friend-action-modal");
-  const fmAvatar  = $("#fm-avatar");
-  const fmName    = $("#fm-name");
-  const fmSub     = $("#fm-sub");
-  const fmClose   = $("#fm-close");
-  const fmChat    = $("#fm-chat");
-  const fmMap     = $("#fm-map");
-  const fmSettings= $("#fm-settings");
+  const CFG = window.PINGED_CONFIG || {};
+  const T   = Object.assign({
+    PROFILES: 'profiles',
+    FRIENDSHIPS: 'friendships'
+  }, (CFG.TABLES || {}));
 
-  let sb = null, me = null;
-  let allFriends = [];
-  let selectedFriend = null;
+  const NAME_KEYS  = (CFG.PROFILE && CFG.PROFILE.DISPLAY_NAME_KEYS) || ['display_name','username'];
+  const AVATAR_COL = (CFG.PROFILE && CFG.PROFILE.AVATAR_COLUMN)      || 'avatar_url';
 
-  function getSB() {
-    if (typeof window.getSB === "function") return window.getSB();
-    if (window.supabase) return window.supabase;
-    throw new Error("Supabase client not found.");
+  const labelOf = (p = {}) => {
+    for (const k of NAME_KEYS) if (p && p[k]) return String(p[k]);
+    return p.username || p.display_name || p.email || p.id || 'User';
+  };
+  const avatarOf = (p = {}) => p[AVATAR_COL] || p.avatar_url || 'assets/avatar.png';
+  const otherOf  = (row, uid) => (row.user_low === uid ? row.user_high : row.user_low);
+  const canonical = (a,b) => (a < b ? {low:a, high:b} : {low:b, high:a});
+
+  function showError(msg) {
+    if (!errEl) return;
+    errEl.textContent = msg || '';
+    errEl.hidden = !msg;
   }
 
-  async function requireAuthedUser() {
-    const { data: { user }, error } = await sb.auth.getUser();
-    if (error) throw error;
-    if (!user) throw new Error("Please sign in first.");
-    return user;
-  }
+  // ------- Data loading -------
+  async function loadFriendshipsForMe(myId) {
+    // Fetch ANY friendships where the current user is either side
+    // (we avoid the 400 by NOT referencing non-existent columns)
+    const rows = await sbRest
+      .from(T.FRIENDSHIPS)
+      .select('id,user_low,user_high,requester_id,status')
+      .or(`(user_low.eq.${myId},user_high.eq.${myId})`);
 
-  function avatarFromProfile(p) {
-    return (p && (p[AVATAR_COL] || p.avatar_url || p.profile_pic)) || "assets/icons/profile.png";
-  }
+    const pending   = rows.filter(r => r.status === 'pending');
+    const accepted  = rows.filter(r => r.status === 'accepted');
+    const incoming  = pending.filter(r => r.requester_id !== myId);
+    const outgoing  = pending.filter(r => r.requester_id === myId);
 
-  function friendPrefsKey(friendId) { return `pinged_friend_prefs_${me.id}_${friendId}`; }
-  function saveLocalPrefs(friendId, prefs) { localStorage.setItem(friendPrefsKey(friendId), JSON.stringify(prefs)); }
-  function loadLocalPrefs(friendId) { try { return JSON.parse(localStorage.getItem(friendPrefsKey(friendId)) || "{}"); } catch { return {}; } }
-
-  document.addEventListener("DOMContentLoaded", init);
-
-  async function init() {
-    try { sb = getSB(); me = await requireAuthedUser(); }
-    catch (e) { console.warn("[friends-ui] auth not ready:", e.message); return; }
-
-    filterEl?.addEventListener("input", renderGrid);
-    fsSave?.addEventListener("click", onSaveSettings);
-    fmClose?.addEventListener("click", closeModal);
-    modal?.addEventListener("close", closeModal);
-
-    await loadFriends();
-    renderGrid();
-  }
-
-  async function loadFriends() {
-    let rows = [];
-    try {
-      const { data, error } = await sb.rpc("list_friends");
-      if (!error && Array.isArray(data)) {
-        rows = data.map(x => ({
-          id: x.id || x.user_id || x.friend_id,
-          username: x.username ?? null,
-          display_name: x.display_name ?? null,
-          email: x.email ?? null,
-          avatar_url: x[AVATAR_COL] || x.avatar_url || x.profile_pic || null
-        })).filter(f => !!f.id);
-      }
-    } catch {}
-
-    if (!rows.length) {
-      const { data: fs, error: e1 } = await sb
-        .from(T.FRIENDSHIPS).select("*")
-        .or(`user_low.eq.${me.id},user_high.eq.${me.id}`)
-        .eq("status", "accepted").limit(500);
-      if (e1) { console.error("[friends-ui] friendships load error", e1); return; }
-
-      const friendIds = [...new Set((fs || []).map(r => r.user_low === me.id ? r.user_high : r.user_low))];
-      if (friendIds.length) {
-        const cols = [`user_id`, `username`, `display_name`, `${AVATAR_COL}`, `email`].join(", ");
-        const { data: profs, error: e2 } = await sb.from(T.PROFILES).select(cols).in("user_id", friendIds);
-        if (e2) { console.error("[friends-ui] profiles load error", e2); return; }
-        rows = (profs || []).map(p => ({
-          id: p.user_id,
-          username: p.username,
-          display_name: p.display_name,
-          email: p.email || null,
-          avatar_url: p[AVATAR_COL] || null
-        }));
-      }
+    // Collect profile IDs to hydrate display
+    const ids = new Set();
+    for (const r of rows) ids.add(otherOf(r, myId));
+    const idList = Array.from(ids);
+    let profiles = [];
+    if (idList.length) {
+      const inCsv = idList.map(id => `"${id}"`).join(',');
+      profiles = await sbRest
+        .from(T.PROFILES)
+        .select(`id,username,${AVATAR_COL},${NAME_KEYS.join(',')}`)
+        .in('id', inCsv);
     }
-    allFriends = rows;
+    const byId = new Map(profiles.map(p => [p.id, p]));
+    return { incoming, outgoing, accepted, profiles: byId };
   }
 
-  function renderGrid() {
-    if (!gridEl) return;
-    const q = (filterEl?.value || "").trim().toLowerCase();
-    const items = (allFriends || []).filter(f => {
-      const hay = [f.display_name, f.username, f.email].filter(Boolean).join(" ").toLowerCase();
-      return !q || hay.includes(q);
-    }).sort((a, b) => (a.display_name || a.username || "").localeCompare(b.display_name || b.username || ""));
+  // ------- Renderers -------
+  function renderAccepted(rows, profilesById, myId, filterText = '') {
+    if (!acceptedEl) return; // nothing to render into on this page
 
-    gridEl.innerHTML = "";
-    if (!items.length) {
-      gridEl.innerHTML = `<div class="muted" style="padding:8px">No friends matched.</div>`;
-      return;
-    }
+    acceptedEl.innerHTML = '';
+    const q = (filterText || '').trim().toLowerCase();
+    let shown = 0;
 
-    for (const f of items) {
-      const card = document.createElement("button");
-      card.className = "friend-card";
-      card.type = "button";
-      card.setAttribute("role","listitem");
-      card.innerHTML = `
-        <img src="${f.avatar_url || 'assets/icons/profile.png'}" alt="">
-        <div class="fc-meta">
-          <div class="fc-name">${f.display_name || (f.username ? '@'+f.username : 'Friend')}</div>
-          <div class="fc-sub">${f.email || (f.username ? '@'+f.username : '')}</div>
+    for (const r of rows) {
+      const otherId = otherOf(r, myId);
+      const p = profilesById.get(otherId) || {};
+      const name = labelOf(p);
+      if (q && !name.toLowerCase().includes(q)) continue;
+
+      const item = document.createElement('div');
+      item.className = 'friend-item';
+      item.innerHTML = `
+        <img class="avatar" src="${avatarOf(p)}" alt="">
+        <div class="meta">
+          <div class="name">${name}</div>
+          <div class="sub">@${p.username || otherId}</div>
         </div>
-      `;
-      card.addEventListener("click", () => openModalForFriend(f));
-      gridEl.appendChild(card);
+        <div class="actions">
+          <button class="btn chat">Message</button>
+          <button class="btn btn-ghost unfriend">Unfriend</button>
+        </div>`;
+
+      const openChat = () => { location.href = 'chat.html?u=' + encodeURIComponent(otherId); };
+      const unfriend = async () => {
+        try {
+          await sbRest.delete(T.FRIENDSHIPS, {
+            user_low:  'eq.' + r.user_low,
+            user_high: 'eq.' + r.user_high
+          });
+          await boot(); // reload
+        } catch (e) { showError(String(e.message || e)); }
+      };
+
+      item.querySelector('.chat').addEventListener('click', openChat);
+      item.querySelector('.unfriend').addEventListener('click', unfriend);
+
+      acceptedEl.appendChild(item);
+      shown++;
     }
+    if (emptyEl) emptyEl.hidden = shown !== 0;
   }
 
-  function openModalForFriend(friend) {
-    selectedFriend = friend;
-    if (!modal) return;
+  function renderIncoming(rows, profilesById, myId) {
+    if (!incomingEl) return;
+    incomingEl.innerHTML = '';
+    for (const r of rows) {
+      const otherId = otherOf(r, myId);
+      const p = profilesById.get(otherId) || {};
+      const li = document.createElement('li');
+      li.className = 'friend-request incoming';
+      li.innerHTML = `
+        <img class="avatar" src="${avatarOf(p)}" alt="">
+        <div class="meta">
+          <div class="name">${labelOf(p)}</div>
+          <div class="sub">sent you a friend request</div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary accept">Accept</button>
+          <button class="btn btn-ghost decline">Decline</button>
+        </div>`;
 
-    $("#fm-avatar").src = friend.avatar_url || "assets/icons/profile.png";
-    $("#fm-name").textContent = friend.display_name || (friend.username ? '@'+friend.username : 'Friend');
-    $("#fm-sub").textContent = friend.email || (friend.username ? '@'+friend.username : '');
-
-    $("#fm-chat").addEventListener("click", onChatClick, { once: true });
-    $("#fm-map").addEventListener("click", onMapClick, { once: true });
-    $("#fm-settings").addEventListener("click", onSettingsClick, { once: true });
-
-    if (typeof modal.showModal === "function") modal.showModal();
-    else modal.removeAttribute("hidden");
-  }
-
-  function closeModal() {
-    if (!modal) return;
-    if (typeof modal.close === "function") try { modal.close(); } catch {}
-    modal.setAttribute("hidden","");
-  }
-
-  async function onChatClick() {
-    closeModal();
-    const id = selectedFriend?.id;
-    if (!id) return alert("Missing friend id");
-
-    // Prefer inline chat if available on this page
-    const CHAT = window.PINGED_CHAT || window;
-    if (typeof CHAT.openDM === "function") {
-      try { await CHAT.openDM(id); return; } catch (e) { console.warn("[friends-ui] openDM failed, falling back", e); }
-    }
-    // Fallback: navigate to chat.html and let it auto-open via query param
-    const sep = "chat.html".includes("?") ? "&" : "?";
-    location.href = `chat.html${sep}friend=${encodeURIComponent(id)}`;
-  }
-
-  function onMapClick() {
-    closeModal();
-    const id = selectedFriend?.id;
-    if (!id) return alert("Missing friend id");
-    const ev = new CustomEvent("pinged:open-map", { detail: { friendId: id } });
-    window.dispatchEvent(ev);
-    setTimeout(() => {
-      if (!ev.defaultPrevented) {
-        const url = (window.PINGED_MAP && window.PINGED_MAP.url) || "map.html";
-        const sep = url.includes("?") ? "&" : "?";
-        location.href = `${url}${sep}friend=${encodeURIComponent(id)}`;
-      }
-    }, 0);
-  }
-
-  async function onSettingsClick() {
-    closeModal();
-    await openFriendSettings(selectedFriend);
-  }
-
-  async function openFriendSettings(friend) {
-    if (!fsForm) return;
-    fsAvatar.src = friend.avatar_url || "assets/icons/profile.png";
-    fsName.textContent = friend.display_name || (friend.username ? '@'+friend.username : 'Friend');
-    fsSub.textContent  = friend.email || (friend.username ? '@'+friend.username : '');
-
-    const prefs = await loadPrefs(friend.id);
-    fsShare.checked   = !!prefs.share_location;
-    fsBlocked.checked = !!prefs.blocked;
-    fsIcon.value      = prefs.icon || "";
-    fsColour.value    = prefs.color || prefs.colour || "#00bfa6";
-
-    fsForm.hidden = false;
-    fsEmpty.hidden = true;
-    document.getElementById("friends-management")?.scrollIntoView({ behavior: "smooth" });
-    fsSave.dataset.friendId = friend.id;
-  }
-
-  async function loadPrefs(friendId) {
-    try {
-      const [low, high] = [me.id, friendId].sort();
-      const { data, error } = await sb
-        .from(T.FRIENDSHIPS)
-        .select("share_location, blocked, icon, color, colour, settings")
-        .eq("user_low", low).eq("user_high", high).limit(1).maybeSingle();
-      if (error) throw error;
-      const row = data || {};
-      let settings = {};
-      try { settings = (row.settings && typeof row.settings === "object") ? row.settings : JSON.parse(row.settings || "{}"); }
-      catch {}
-      const merged = Object.assign({}, settings, {
-        share_location: row.share_location,
-        blocked: row.blocked,
-        icon: row.icon,
-        color: row.color || row.colour
+      li.querySelector('.accept').addEventListener('click', async () => {
+        try {
+          await sbRest.update(T.FRIENDSHIPS, { status: 'accepted' }, {
+            user_low:  'eq.' + r.user_low,
+            user_high: 'eq.' + r.user_high,
+            status:    'eq.pending'
+          });
+          await boot();
+        } catch (e) { showError(String(e.message || e)); }
       });
-      if (Object.values(merged).every(v => typeof v === "undefined")) return loadLocalPrefs(friendId);
-      return merged;
-    } catch {
-      return loadLocalPrefs(friendId);
+
+      li.querySelector('.decline').addEventListener('click', async () => {
+        try {
+          await sbRest.delete(T.FRIENDSHIPS, {
+            user_low:  'eq.' + r.user_low,
+            user_high: 'eq.' + r.user_high
+          });
+          await boot();
+        } catch (e) { showError(String(e.message || e)); }
+      });
+
+      incomingEl.appendChild(li);
     }
   }
 
-  async function onSaveSettings() {
-    const friendId = fsSave?.dataset.friendId;
-    if (!friendId) return;
-    const changes = {
-      share_location: !!fsShare.checked,
-      blocked: !!fsBlocked.checked,
-      icon: fsIcon.value || null,
-      color: fsColour.value || null
-    };
-    const [low, high] = [me.id, friendId].sort();
+  function renderOutgoing(rows, profilesById, myId) {
+    if (!outgoingEl) return;
+    outgoingEl.innerHTML = '';
+    for (const r of rows) {
+      const otherId = otherOf(r, myId);
+      const p = profilesById.get(otherId) || {};
+      const li = document.createElement('li');
+      li.className = 'friend-request outgoing';
+      li.innerHTML = `
+        <img class="avatar" src="${avatarOf(p)}" alt="">
+        <div class="meta">
+          <div class="name">${labelOf(p)}</div>
+          <div class="sub">request pending</div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost cancel">Cancel</button>
+        </div>`;
+
+      li.querySelector('.cancel').addEventListener('click', async () => {
+        try {
+          await sbRest.delete(T.FRIENDSHIPS, {
+            user_low:  'eq.' + r.user_low,
+            user_high: 'eq.' + r.user_high
+          });
+          await boot();
+        } catch (e) { showError(String(e.message || e)); }
+      });
+
+      outgoingEl.appendChild(li);
+    }
+  }
+
+  // ------- Add friend by username -------
+  async function addFriend(myId, username) {
+    showError('');
+    const uname = String(username || '').trim();
+    if (!uname) { showError('Enter a username'); return; }
+    if (!myId)   { showError('Not signed in'); return; }
+
+    const profs = await sbRest.from(T.PROFILES)
+      .select(`id,username,${AVATAR_COL},${NAME_KEYS.join(',')}`);
+    const target = profs.find(p => p.username === uname);
+    if (!target) { showError('User not found'); return; }
+    if (target.id === myId) { showError('You cannot friend yourself'); return; }
+
+    const { low, high } = canonical(myId, target.id);
+
+    // Check for existing pair
+    const existing = await sbRest.from(T.FRIENDSHIPS)
+      .select('id,status,requester_id,user_low,user_high')
+      .or(`(and(user_low.eq.${low},user_high.eq.${high}))`);
+
+    if (existing.length) {
+      const row = existing[0];
+      if (row.status === 'accepted') return showError('You are already friends');
+      if (row.status === 'pending')  return showError('Request already pending');
+      return showError('A request already exists');
+    }
+
+    await sbRest.insert(T.FRIENDSHIPS, {
+      user_low: low,
+      user_high: high,
+      requester_id: myId,
+      status: 'pending'
+    });
+  }
+
+  // ------- Boot -------
+  async function boot() {
     try {
-      const { error } = await sb.from(T.FRIENDSHIPS).update(changes).eq("user_low", low).eq("user_high", high);
-      if (error) throw error;
-      toast("Settings saved.");
+      // Ensure authenticated & we have myId
+      if (window.guardRequireAuth) await window.guardRequireAuth({ redirectTo: (CFG.ROUTES && CFG.ROUTES.LOGIN) || 'index.html' });
     } catch {
-      saveLocalPrefs(friendId, changes);
-      toast("Settings saved (local only). Add columns to friendships to persist.");
+      return; // redirected
+    }
+
+    const { data } = await getSB().auth.getSession();
+    const sess = data && data.session;
+    const myId = (sess && sess.user && sess.user.id) || null;
+    if (!myId) return;
+
+    // Load
+    const { incoming, outgoing, accepted, profiles } = await loadFriendshipsForMe(myId);
+
+    // Render
+    renderAccepted(accepted, profiles, myId, filterEl ? filterEl.value : '');
+    renderIncoming(incoming, profiles, myId);
+    renderOutgoing(outgoing, profiles, myId);
+
+    // Wire UI
+    if (filterEl) {
+      filterEl.oninput = () => renderAccepted(accepted, profiles, myId, filterEl.value);
+    }
+    if (addForm) {
+      addForm.onsubmit = async (e) => {
+        e.preventDefault();
+        await addFriend(myId, addInput && addInput.value);
+        if (addInput) addInput.value = '';
+        await boot(); // refresh lists
+      };
     }
   }
 
-  function toast(msg) {
-    try { new Notification("Pinged", { body: msg }); }
-    catch {
-      const el = document.createElement("div");
-      el.textContent = msg;
-      Object.assign(el.style, { position:"fixed", right:"12px", bottom:"12px", background:"#222", color:"#fff",
-        padding:"10px 12px", borderRadius:"10px", zIndex:99999, fontSize:"13px" });
-      document.body.appendChild(el); setTimeout(()=>el.remove(), 2000);
-    }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
   }
 })();

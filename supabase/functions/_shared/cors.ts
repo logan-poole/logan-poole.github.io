@@ -1,20 +1,23 @@
-﻿// supabase/functions/_shared/cors.ts
-// Central CORS helper for Edge Functions.
+﻿// Central CORS helper for Edge Functions.
+//
+// Allow local dev + your production origin(s) by default.
+// You can override with a comma-separated ALLOWED_ORIGINS secret.
+// Set ALLOW_ANY_ORIGIN=1 during local development if you want to disable checks.
 
 const DEFAULT_ALLOWED = [
-  // Local dev
+  // Local (adjust as needed)
   "http://localhost:5500",
   "http://127.0.0.1:5500",
   // GitHub Pages (your site)
   "https://logan-poole.github.io",
-  // You can add more production origins here:
-  // "https://your-custom-domain.com",
 ];
+
+function truthy(v?: string | null) {
+  return !!v && /^(1|true|yes)$/i.test(v);
+}
 
 function readAllowedFromEnv(): string[] {
   const raw = Deno.env.get("ALLOWED_ORIGINS") || "";
-  // Comma-separated list in a secret is supported, e.g.
-  // ALLOWED_ORIGINS="https://a.com,https://b.com"
   const fromEnv = raw
     .split(",")
     .map((s) => s.trim())
@@ -22,7 +25,13 @@ function readAllowedFromEnv(): string[] {
   return fromEnv.length ? fromEnv : DEFAULT_ALLOWED;
 }
 
+/** Returns the allowed origin string if permitted, or "" if not allowed. */
 export function allowOrigin(req: Request): string {
+  // Optional bypass (local dev): ALLOW_ANY_ORIGIN=1
+  if (truthy(Deno.env.get("ALLOW_ANY_ORIGIN"))) {
+    return req.headers.get("origin") ?? "*";
+  }
+
   const origin = req.headers.get("origin") ?? "";
   if (!origin) return ""; // non-browser or missing Origin
   const allowed = readAllowedFromEnv();

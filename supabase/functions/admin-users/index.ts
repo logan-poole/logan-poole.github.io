@@ -33,17 +33,11 @@ async function getRequester(req: Request) {
   return data.user;
 }
 async function isAdmin(userId: string) {
-  // service role bypasses RLS
   const svc = adminClient();
-  const { data } = await svc
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .maybeSingle();
+  const { data } = await svc.from("user_roles").select("role").eq("user_id", userId).maybeSingle();
   return !!data && (data.role === "admin" || data.role === "super_admin");
 }
 
-// Narrow user payload
 function safeUser(u: any) {
   return {
     id: u.id,
@@ -59,7 +53,6 @@ function safeUser(u: any) {
   };
 }
 
-// Robust profiles upsert: first try user_id, then retry with id if schema uses that key
 async function upsertProfileRow(
   svc: ReturnType<typeof adminClient>,
   userId: string,
@@ -81,7 +74,6 @@ async function upsertProfileRow(
       /column .* does not exist/i.test(error.message || "") ||
       error.code === "PGRST204")
   ) {
-    // Retry against id PK shape
     const { error: e2 } = await svc
       .from("profiles")
       .upsert({ id: userId, ...common }, { onConflict: "id" });
@@ -96,18 +88,16 @@ async function fetchAllUsers() {
   const perPage = 200;
   let page = 1;
   let all: any[] = [];
-  let total = 0;
   while (true) {
     const { data, error } = await svc.auth.admin.listUsers({ page, perPage });
     if (error) throw error;
     const chunk = data.users ?? [];
-    total = data.total ?? Math.max(total, all.length + chunk.length);
     all = all.concat(chunk);
     if (chunk.length < perPage) break;
     page += 1;
-    if (page > 200) break; // hard cap
+    if (page > 200) break;
   }
-  return { users: all, total };
+  return { users: all, total: all.length };
 }
 
 serve(async (req: Request) => {
@@ -124,17 +114,13 @@ serve(async (req: Request) => {
     const search = url.searchParams;
     const svc = adminClient();
 
-    // -- Lightweight "who am I" (helpful in UI debugging)
+    // Who am I?
     if (req.method === "GET" && search.get("who") === "1") {
-      const roleRow = await svc
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const roleRow = await svc.from("user_roles").select("role").eq("user_id", user.id).maybeSingle();
       return json({ user: { id: user.id, email: user.email }, role: roleRow.data?.role ?? null }, 200, origin);
     }
 
-    // -- STATS
+    // Stats
     if (req.method === "GET" && search.get("stats") === "1") {
       const { users } = await fetchAllUsers();
       const now = new Date();
@@ -143,19 +129,9 @@ serve(async (req: Request) => {
       const weekAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
 
       const { data: roles } = await svc.from("user_roles").select("user_id, role");
-      const admins = new Set(
-        (roles ?? [])
-          .filter((r) => r.role === "admin" || r.role === "super_admin")
-          .map((r) => r.user_id),
-      );
+      const admins = new Set((roles ?? []).filter(r => ['admin', 'super_admin'].includes(r.role)).map(r => r.user_id));
 
-      let total_users = users.length;
-      let banned = 0;
-      let active_24h = 0;
-      let active_30d = 0;
-      let new_7d = 0;
-      let admin_count = admins.size;
-
+      let banned = 0, active_24h = 0, active_30d = 0, new_7d = 0;
       const days: Record<string, number> = {};
       for (let i = 29; i >= 0; i--) {
         const d = new Date(now.getTime() - i * 24 * 3600 * 1000);
@@ -174,40 +150,32 @@ serve(async (req: Request) => {
       }
 
       const recent_logins = users
-        .filter((u) => !!u.last_sign_in_at)
-        .sort(
-          (a, b) =>
-            new Date(b.last_sign_in_at!).getTime() -
-            new Date(a.last_sign_in_at!).getTime(),
-        )
+        .filter(u => !!u.last_sign_in_at)
+        .sort((a, b) => new Date(b.last_sign_in_at!).getTime() - new Date(a.last_sign_in_at!).getTime())
         .slice(0, 20)
-        .map((u) => ({ id: u.id, email: u.email, last_sign_in_at: u.last_sign_in_at }));
+        .map(u => ({ id: u.id, email: u.email, last_sign_in_at: u.last_sign_in_at }));
 
-      return json(
-        {
-          totals: { total_users, admins: admin_count, banned, active_24h, active_30d, new_7d },
-          signups_by_day: Object.entries(days).map(([date, count]) => ({ date, count })),
-          recent_logins,
-        },
-        200,
-        origin,
-      );
+      return json({
+        totals: { total_users: users.length, admins: admins.size, banned, active_24h, active_30d, new_7d },
+        signups_by_day: Object.entries(days).map(([date, count]) => ({ date, count })),
+        recent_logins
+      }, 200, origin);
     }
 
-    // -- ROLE MANAGEMENT
+    // Role management
     if (req.method === "POST" && search.get("action") === "set_role") {
       const body = await req.json().catch(() => ({}));
       const user_id = String(body.user_id || "");
       const role = String(body.role || "");
-      const allowed = new Set(["user", "admin", "super_admin"]);
-      if (!user_id || !allowed.has(role)) return json({ error: "Bad input" }, 400, origin);
-
+      if (!user_id || !['user', 'admin', 'super_admin'].includes(role)) {
+        return json({ error: "Bad input" }, 400, origin);
+      }
       const { error } = await svc.from("user_roles").upsert({ user_id, role });
       if (error) return json({ error: error.message }, 400, origin);
       return json({ ok: true }, 200, origin);
     }
 
-    // -- LIST USERS
+    // List users
     if (req.method === "GET") {
       const page = Math.max(1, Number(search.get("page") ?? "1"));
       const perPage = Math.min(200, Math.max(1, Number(search.get("perPage") ?? "50")));
@@ -218,56 +186,40 @@ serve(async (req: Request) => {
 
       let users = (data.users ?? []).map(safeUser);
       if (q) {
-        users = users.filter(
-          (u) =>
-            (u.email ?? "").toLowerCase().includes(q) ||
-            (u.user_metadata?.username ?? "").toLowerCase().includes(q) ||
-            (u.user_metadata?.display_name ?? "").toLowerCase().includes(q),
+        users = users.filter(u =>
+          (u.email ?? "").toLowerCase().includes(q) ||
+          (u.user_metadata?.username ?? "").toLowerCase().includes(q) ||
+          (u.user_metadata?.display_name ?? "").toLowerCase().includes(q)
         );
       }
       return json({ users, page, perPage, total: data.total }, 200, origin);
     }
 
-    // -- CREATE USER
+    // Create
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       const { email, password, email_confirm = false, user_metadata = {} } = body;
       if (!email) return json({ error: "email is required" }, 400, origin);
-
-      const { data, error } = await svc.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: !!email_confirm,
-        user_metadata,
-      });
+      const { data, error } = await svc.auth.admin.createUser({ email, password, email_confirm, user_metadata });
       if (error) return json({ error: error.message }, 400, origin);
-
-      if (data.user?.id) {
-        await upsertProfileRow(svc, data.user.id, user_metadata);
-      }
+      if (data.user?.id) await upsertProfileRow(svc, data.user.id, user_metadata);
       return json({ user: safeUser(data.user) }, 201, origin);
     }
 
-    // -- UPDATE USER
+    // Update
     if (req.method === "PATCH") {
       const id = search.get("id");
       if (!id) return json({ error: "id is required" }, 400, origin);
       const body = await req.json().catch(() => ({}));
-
       const { data, error } = await svc.auth.admin.updateUserById(id, body);
       if (error) return json({ error: error.message }, 400, origin);
-
-      // Optionally sync profile metadata if provided
       if (data.user?.id && body?.user_metadata) {
-        try {
-          await upsertProfileRow(svc, data.user.id, body.user_metadata);
-        } catch { /* non-fatal */ }
+        try { await upsertProfileRow(svc, data.user.id, body.user_metadata); } catch { }
       }
-
       return json({ user: safeUser(data.user) }, 200, origin);
     }
 
-    // -- DELETE USER
+    // Delete
     if (req.method === "DELETE") {
       const id = search.get("id");
       if (!id) return json({ error: "id is required" }, 400, origin);

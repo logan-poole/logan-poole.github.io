@@ -1,150 +1,165 @@
+/* Author: Logan Poole — 30083609
+   File: /scripts/ui.js
+   Purpose: Header/profile dropdown logic. Never show protected UI on public pages.
+*/
 
-/* Profile avatar/dropdown + small helpers; uses getSB() from sb-client.js */
-    (function () {
-  const $  = (id) => document.getElementById(id);
-  const qs = (sel, root = document) => root.querySelector(sel);
+(function () {
+  "use strict";
 
-    /* ---------- Supabase client (lazy) ---------- */
-    function sbClient() {
-    // ⚠️ call the getter, don't return the function
-    if (typeof window.getSB === 'function') return window.getSB();
-    return window.__sb || null;
+  // ----- helpers -----
+  function qs(sel, root) { return (root || document).querySelector(sel); }
+  function qsa(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
+
+  function getSBish() {
+    if (typeof window.getSB === "function") return window.getSB();
+    if (window.__sb && window.__sb.auth) return window.__sb;
+    if (window.supabase && window.supabase.auth) return window.supabase;
+    return null;
   }
 
-    /* ---------- Toast ---------- */
-    function showToast(message, variant = 'success', ms = 2200) {
-      let t = document.querySelector('.toast');
-    if (!t) {t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
-    t.textContent = message;
-    t.classList.remove('success','error'); t.classList.add(variant);
-    requestAnimationFrame(()=> t.classList.add('show'));
-    clearTimeout(t._h); t._h = setTimeout(()=> t.classList.remove('show'), ms);
+  function initialsAvatarData(nameOrEmail, bg, fg) {
+    nameOrEmail = nameOrEmail || "";
+    bg = bg || "#E6F7F3";
+    fg = fg || "#0d7f6e";
+    var token = (nameOrEmail || "").trim();
+    var name = token.split("@")[0] || token;
+    var parts = name.replace(/[_\-.]+/g, " ").trim().split(/\s+/).filter(Boolean);
+    var initials = (parts[0] ? parts[0][0] : "U").toUpperCase();
+    if (parts.length > 1) initials += (parts[1][0] || "").toUpperCase();
+
+    var svg =
+      "<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'>" +
+      "<circle cx='48' cy='48' r='46' fill='" + bg + "' stroke='" + fg + "' stroke-width='2' />" +
+      "<text x='50%' y='56%' text-anchor='middle' font-family='Inter, Arial, sans-serif' font-size='42' fill='" + fg + "'>" + initials + "</text>" +
+      "</svg>";
+    return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
   }
 
-    /* ---------- Avatar fallback ---------- */
-    function initialsAvatarData(nameOrEmail = '', bg = '#E6F7F3', fg = '#0d7f6e') {
-    const s = String(nameOrEmail).trim();
-    let initials = '?';
-    if (s.includes('@')) initials = s[0]?.toUpperCase() || '?';
-    else {
-      const [a='', b=''] = s.split(/\s+/).filter(Boolean);
-    initials = ((a[0]||'')+(b[0]||'')).toUpperCase() || (s[0]?.toUpperCase() || '?');
-    }
-    const svg = encodeURIComponent(
-    `<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'>
-      <rect width='100%' height='100%' rx='48' fill='${bg}' />
-      <text x='50%' y='54%' dominant-baseline='middle' text-anchor='middle'
-        font-family='Verdana,Segoe UI,Arial' font-size='42' fill='${fg}'>${initials}</text>
-    </svg>`
+  // ----- profile menu template (protected only) -----
+  function profileMenuHTML() {
+    return (
+      '<div class="profile-menu" data-auth="protected" hidden aria-hidden="true">' +
+        '<button id="profileMenuBtn" class="profile-btn" aria-haspopup="true" aria-expanded="false">' +
+          '<img id="nav-avatar" class="avatar" alt="Profile" />' +
+          '<span id="nav-name" class="nav-name"></span>' +
+          '<svg class="chev" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>' +
+        '</button>' +
+        '<ul id="nav-dropdown" class="dropdown" role="menu" hidden>' +
+          '<li role="none"><button id="dropdownThemeToggle" role="menuitem" type="button">Toggle theme</button></li>' +
+          '<li role="none" data-admin="true" hidden><a href="admin/admin.html" role="menuitem">Admin</a></li>' +
+          '<li role="none"><button id="signOutBtn" role="menuitem" type="button">Sign out</button></li>' +
+        '</ul>' +
+      '</div>'
     );
-    return `data:image/svg+xml;charset=UTF-8,${svg}`;
   }
 
-    /* ---------- Header shell ---------- */
-    function ensureNavShell() {
-    const right = qs('.topnav .nav-right'); if (!right) return;
-    if (!qs('.profile-menu', right)) {
-      const wrap = document.createElement('div'); wrap.className = 'profile-menu'; wrap.style.position='relative';
-    const btn  = document.createElement('button'); btn.id='profile-trigger'; btn.className='avatar-btn';
-    btn.setAttribute('aria-haspopup','true'); btn.setAttribute('aria-expanded','false');
-    const img  = document.createElement('img'); img.id='nav-avatar'; img.className='avatar-sm'; img.alt='Profile'; btn.appendChild(img);
-    const name = document.createElement('span'); name.id='nav-name'; name.className='nav-name';
-    const list = document.createElement('ul');  list.id='nav-dropdown'; list.className='dropdown hidden'; list.setAttribute('role','menu');
-    wrap.append(btn, name, list); right.appendChild(wrap);
-      btn.addEventListener('click', (e)=>{e.stopPropagation(); toggleDropdown(); });
-      document.addEventListener('click', (e)=>{ const open = btn.getAttribute('aria-expanded')==='true'; if (open && !wrap.contains(e.target)) closeDropdown(); });
-      document.addEventListener('keydown', (e)=>{ if (e.key==='Escape') closeDropdown(); });
+  function ensureProfileContainer(navRight) {
+    var existing = qs(".profile-menu", navRight);
+    if (existing) return existing;
+    navRight.insertAdjacentHTML("beforeend", profileMenuHTML());
+    return qs(".profile-menu", navRight);
+  }
+
+  // ----- main render -----
+  async function loadProfileIntoHeader() {
+    var navRight = qs(".nav-right");
+    if (!navRight) return;
+
+    var isPublicOnly = (document.body && document.body.getAttribute("data-public-only") === "true");
+
+    // On public pages, force-hide all protected items up-front (no flicker)
+    if (isPublicOnly) {
+      qsa('[data-auth="protected"]').forEach(function (el) {
+        el.hidden = true;
+        el.setAttribute("aria-hidden", "true");
+      });
+    }
+
+    var sb = getSBish();
+    var sessionRes = null, user = null;
+    try { sessionRes = await sb?.auth?.getSession(); } catch (e) {}
+    user = sessionRes && sessionRes.data && sessionRes.data.session && sessionRes.data.session.user || null;
+
+    // Public page policy: NEVER show the profile menu on index.html
+    if (isPublicOnly) {
+      var pm = qs(".profile-menu", navRight);
+      if (pm) { pm.hidden = true; pm.setAttribute("aria-hidden", "true"); }
+      return;
+    }
+
+    // Protected pages: only show when authenticated
+    var wrap = ensureProfileContainer(navRight);
+    if (!user) {
+      wrap.hidden = true;
+      wrap.setAttribute("aria-hidden", "true");
+      return;
+    }
+
+    // Unhide for authenticated users
+    wrap.hidden = false;
+    wrap.removeAttribute("aria-hidden");
+
+    var btn = qs("#profileMenuBtn", wrap);
+    var list = qs("#nav-dropdown", wrap);
+    var nameEl = qs("#nav-name", wrap);
+    var avatarEl = qs("#nav-avatar", wrap);
+    var adminLi = qs('li[data-admin="true"]', wrap);
+
+    var display =
+      (user.user_metadata && (user.user_metadata.display_name || user.user_metadata.name || user.user_metadata.username)) ||
+      user.email || "You";
+
+    if (nameEl) nameEl.textContent = display;
+    if (avatarEl) {
+      var url = user.user_metadata && user.user_metadata.avatar_url;
+      avatarEl.src = url || initialsAvatarData(display);
+    }
+
+    var allowEmails = (window.__PINGED_ADMIN_EMAILS || []).map(function (s) { return String(s).toLowerCase(); });
+    var allowDomains = (window.__PINGED_ADMIN_DOMAINS || []).map(function (s) { return String(s).toLowerCase(); });
+    var email = String(user.email || "").toLowerCase();
+    var domain = email.split("@")[1] || "";
+    var isAdmin = allowEmails.indexOf(email) >= 0 || allowDomains.indexOf(domain) >= 0;
+    if (adminLi) adminLi.hidden = !isAdmin;
+
+    if (btn && list) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        var open = !list.hidden;
+        list.hidden = open;
+        btn.setAttribute("aria-expanded", String(!open));
+      });
+      document.addEventListener("click", function (e) {
+        if (!wrap.contains(e.target)) { list.hidden = true; btn.setAttribute("aria-expanded", "false"); }
+      });
+      var themeBtn = list.querySelector("#dropdownThemeToggle");
+      if (themeBtn) themeBtn.addEventListener("click", function () {
+        var topBtn = document.getElementById("themeToggle"); if (topBtn) topBtn.click();
+      });
+      var signOutBtn = list.querySelector("#signOutBtn");
+      if (signOutBtn) signOutBtn.addEventListener("click", async function () {
+        try { await sb?.auth?.signOut(); } catch (e) {}
+        window.location.replace("index.html");
+      });
     }
   }
-    function toggleDropdown(force){
-    const btn=$('profile-trigger'), menu=$('nav-dropdown'); if(!btn||!menu) return;
-    const willOpen = typeof force==='boolean' ? force : (btn.getAttribute('aria-expanded')!=='true');
-    btn.setAttribute('aria-expanded', String(willOpen)); menu.classList.toggle('hidden', !willOpen);
-  }
-    function closeDropdown(){toggleDropdown(false); }
 
-    function openModal(title, html){
-      let host = $('modal-backdrop');
-    if (!host) {
-      host = document.createElement('div'); host.id='modal-backdrop'; host.className='modal-backdrop hidden'; host.setAttribute('aria-hidden','true');
-    host.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div class="modal-header"><h3 id="modal-title" class="modal-title"></h3>
-        <button class="modal-close" type="button" aria-label="Close">✕</button></div>
-      <div id="modal-body" class="modal-body"></div></div>`;
-    document.body.appendChild(host);
-      host.addEventListener('click', (e)=>{ if(e.target===host) closeModal(); });
-    }
-    $('modal-title').textContent = title||''; $('modal-body').innerHTML = html||'';
-    host.classList.remove('hidden'); host.setAttribute('aria-hidden','false');
-    host.querySelector('.modal-close').onclick = closeModal;
-  }
-    function closeModal(){ const host=$('modal-backdrop'); if(!host) return; host.classList.add('hidden'); host.setAttribute('aria-hidden','true'); }
-    function openHelpModal(){openModal('Help', `<div class="card"><p>See <a href="faq.html">FAQs</a>, <a href="privacy.html">Privacy</a>, <a href="terms.html">Terms</a>, <a href="support.html">Support</a>.</p></div>`); }
-
-    async function signOut(){ const sb = sbClient(); if (!sb) return showToast('Auth not ready','error'); try {await sb.auth.signOut(); } catch { } showToast('Signed out'); if (!location.pathname.endsWith('/index.html')) location.href='index.html'; }
-
-    function buildDropdown(user){
-    const list = $('nav-dropdown'); if(!list) return; list.innerHTML='';
-    const addItem=(text,glyph,onClick,danger=false)=>{const li=document.createElement('li'); const b=document.createElement('button'); b.type='button'; b.className='menu-item'+(danger?' menu-danger':''); const ic=document.createElement('span'); ic.className='menu-icon'; ic.textContent=glyph; b.append(ic, document.createTextNode(' '+text)); b.addEventListener('click', ()=>{onClick?.(); closeDropdown(); }); li.appendChild(b); list.appendChild(li);};
-    const divider=()=>{ const d=document.createElement('div'); d.className='divider'; const li=document.createElement('li'); li.appendChild(d); list.appendChild(li); };
-
-    if (!user) {addItem('Sign in', '🔑', () => window.AuthModals?.open?.('signin')); addItem('Sign up','✍️',()=>window.AuthModals?.open?.('signup')); divider(); addItem('Help','❓',openHelpModal); return; }
-    addItem('Dashboard','🏠',()=>location.href='dashboard.html'); addItem('Settings','⚙️',()=>location.href='settings.html'); divider(); addItem('Help','❓',openHelpModal); addItem('Sign out','🚪',signOut,true);
-  }
-
-    async function loadProfileIntoHeader(){
-      ensureNavShell();
-    const img = $('nav-avatar'), nameEl = $('nav-name');
-    const sb = sbClient();
-
-    if (!sb) { if (img) img.src = initialsAvatarData('P'); if (nameEl) nameEl.textContent=''; buildDropdown(null); return; }
-
-    let user = null;
-    try { const {data, error} = await sb.auth.getUser(); user = (!error && data?.user) ? data.user : null; } catch { }
-
-    if (!user) { if (img) img.src=initialsAvatarData('P'); if (nameEl) nameEl.textContent=''; buildDropdown(null); return; }
-
-    const meta = user.user_metadata || { };
-    const display = meta.display_name || meta.full_name || meta.username || meta.name || user.email || '';
-    const avatar  = meta.profile_pic || meta.avatar_url || initialsAvatarData(display || user.email || 'P');
-    if (img) img.src = avatar; if (nameEl) nameEl.textContent = display;
-
-    // Optional: hydrate from a profile table if you've configured it
-    const cfg = window.PINGED_CONFIG?.PROFILE;
-    if (cfg?.TABLE && cfg?.ID_COLUMN) {
+  // ----- boot & auth reactivity -----
+  function boot() {
+    loadProfileIntoHeader(); // run now
+    if (!window.__pingedAuthHooked) {
+      window.__pingedAuthHooked = true;
+      var sb = getSBish();
       try {
-        const fields = cfg.FIELDS || 'display_name,username,profile_pic,avatar_url';
-    const {data, error} = await sb.from(cfg.TABLE).select(fields).eq(cfg.ID_COLUMN, user.id).maybeSingle();
-    if (!error && data) {
-          const name = data.display_name || data.username || display;
-    const pic  = data.profile_pic || data.avatar_url || avatar;
-    if (img) img.src = pic; if (nameEl) nameEl.textContent = name;
-        }
-      } catch { }
+        sb && sb.auth && sb.auth.onAuthStateChange && sb.auth.onAuthStateChange(function () {
+          loadProfileIntoHeader();
+        });
+      } catch (e) {}
     }
-    buildDropdown(user);
   }
 
-  // Boot & keep in sync
-  window.__loadUser = (async () => {
-    try {await loadProfileIntoHeader(); } catch { }
-    const sb = sbClient();
-    try {
-      const {data, error} = sb ? await sb.auth.getUser() : {data: null, error: true };
-    const user = (!error && data?.user) ? data.user : null;
-    window.dispatchEvent(new CustomEvent('pinged:auth', {detail: {authed: !!user, user } }));
-    } catch {
-      window.dispatchEvent(new CustomEvent('pinged:auth', { detail: { authed: false } }));
-    }
-  })();
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
 
-    window.addEventListener('pinged:auth', loadProfileIntoHeader);
-
-    // Theme button (works with your theme-toggle.js too)
-    (function applySavedTheme(){
-    try { const t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch { }
-  })();
-
-    window.pingedUI = {showToast, openHelpModal};
+  window.__pingedUiHeader = { loadProfileIntoHeader: loadProfileIntoHeader, initialsAvatarData: initialsAvatarData };
 })();
-

@@ -58,7 +58,7 @@
     </style>
 </head>
 
-<body>
+<body data-require-auth="true">
     <header class="topnav">
         <a href="../index.html" class="nav-left" style="text-decoration:none;">
             <img src="../assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
@@ -159,15 +159,23 @@
         <p>&copy; 2025 Pinged. All rights reserved.</p>
     </footer>
 
+    <!-- libs -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- config + client -->
     <script src="../scripts/config.js"></script>
     <script src="../scripts/sb-client.js"></script>
+
+    <!-- REQUIRE AUTH (no defer) -->
+    <script src="../scripts/auth-guard.js"></script>
+
+    <!-- nav + ui -->
     <script src="../scripts/admin-nav.js"></script>
     <script src="../scripts/ui.js" defer></script>
     <script src="../scripts/theme-toggle.js" defer></script>
 
-    <!-- Gate + stats -->
+    <!-- gate + stats -->
     <script src="../scripts/admin-stats.js"></script>
 </body>
 

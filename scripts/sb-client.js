@@ -1,149 +1,125 @@
-/* scripts/sb-client.js
-   PURPOSE
-   - Create ONE Supabase v2 client and expose helpers:
-       window.getSB()            -> Supabase client or null
-       window.hasSB()            -> boolean
-       window.sbAuthedFetch(url, opts) -> fetch with Bearer <JWT>
-       window.callSupabaseFn(name, { method, query, body, headers }) -> call Edge Functions with JWT
-       window.getSignedAvatarUrl(path) -> signed URL for avatars bucket
-   - Attaches the instance to window.__sb (and window.sb for convenience).
-
-   REQUIREMENTS
-   - scripts/config.js loaded first (sets window.PINGED_CONFIG = { SUPABASE_URL, SUPABASE_ANON_KEY, FUNCTIONS_BASE? })
-   - <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-*/
+/* Author: Logan Poole — 30083609
+   FILE: /scripts/sb-client.js
+   Purpose:
+   - Stable Supabase AUTH client (session).
+   - PostgREST bridge that prefers the user's access_token.
+   - Expose sbUser/sbAccessToken and guard helper. */
 (function () {
-  let instance = null;
-  let warned = false;
+  'use strict';
 
-  function ensureSupabaseUMD() {
-    if (window.supabase && typeof window.supabase.createClient === "function") return true;
-    if (!warned) {
-      console.error("[sb-client] @supabase/supabase-js v2 UMD not found. Include it BEFORE this script.");
-      warned = true;
-    }
-    return false;
+  const CFG  = window.PINGED_CONFIG || {};
+  const RAW  = (CFG.SUPABASE_URL || '').trim().replace(/\/+$/,'');
+  const KEY  = CFG.SUPABASE_ANON_KEY || '';
+  let BASE;
+  try { BASE = new URL(RAW).origin; } catch { BASE = RAW; }
+
+  // Globals used by other scripts
+  window.sbUser = window.sbUser || null;
+  window.sbAccessToken = window.sbAccessToken || null;
+
+  function headers(json = true) {
+    const token = window.sbAccessToken || KEY; // prefer session token
+    const h = { apikey: KEY, Authorization: 'Bearer ' + token };
+    if (json) h['Content-Type'] = 'application/json';
+    return h;
+  }
+  function qs(obj) {
+    const u = new URLSearchParams();
+    Object.entries(obj || {}).forEach(([k,v]) => u.append(k, v));
+    return u.toString();
   }
 
-  function ensureConfig() {
-    const cfg = window.PINGED_CONFIG || window.PINGED || {};
-    const url = cfg.SUPABASE_URL;
-    const key = cfg.SUPABASE_ANON_KEY;
-    if (!url || !key) {
-      if (!warned) console.error("[sb-client] Missing SUPABASE_URL or SUPABASE_ANON_KEY in scripts/config.js");
-      warned = true;
-      return null;
-    }
-    return {
-      url,
-      key,
-      functionsBase: cfg.FUNCTIONS_BASE || "/functions/v1", // absolute domain preferred in prod; path ok for local proxy
-      buckets: cfg.BUCKETS || {},
-    };
+  async function rget(table, params) {
+    const query = qs(params);
+    const url = BASE + '/rest/v1/' + table + (query ? ('?' + query) : '');
+    const r = await fetch(url, { headers: headers(false) });
+    if (!r.ok) throw new Error('GET ' + table + ' -> ' + r.status);
+    return r.json();
+  }
+  async function rpost(table, body, preferReturn = true) {
+    const url = BASE + '/rest/v1/' + table;
+    const h = headers(true);
+    if (preferReturn) h.Prefer = 'return=representation';
+    const r = await fetch(url, { method: 'POST', headers: h, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error('POST ' + table + ' -> ' + r.status);
+    return r.json();
+  }
+  async function rpatch(table, body, params, preferReturn = true) {
+    const url = BASE + '/rest/v1/' + table + (params ? ('?' + qs(params)) : '');
+    const h = headers(true);
+    if (preferReturn) h.Prefer = 'return=representation';
+    const r = await fetch(url, { method: 'PATCH', headers: h, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error('PATCH ' + table + ' -> ' + r.status);
+    return r.json();
+  }
+  async function rdel(table, params, preferReturn = true) {
+    const url = BASE + '/rest/v1/' + table + (params ? ('?' + qs(params)) : '');
+    const h = headers(false);
+    if (preferReturn) h.Prefer = 'return=representation';
+    const r = await fetch(url, { method: 'DELETE', headers: h });
+    if (!r.ok) throw new Error('DELETE ' + table + ' -> ' + r.status);
+    return r.json();
   }
 
-  function create() {
-    const cfg = ensureConfig();
-    if (!cfg) return null;
-    if (!ensureSupabaseUMD()) return null;
+  function SelectBuilder(table) { this.table = table; this._params = {}; }
+  SelectBuilder.prototype.select = function (cols) { this._params.select = cols || '*'; return this; };
+  SelectBuilder.prototype.eq     = function (col,val){ this._params[col] = 'eq.' + val; return this; };
+  SelectBuilder.prototype.in     = function (col,csv){ this._params[col] = 'in.(' + csv + ')'; return this; };
+  SelectBuilder.prototype.or     = function (expr)  { this._params.or = expr; return this; };
+  SelectBuilder.prototype.order  = function (col,dir){ this._params.order = col + '.' + ((dir||'asc').toLowerCase()); return this; };
+  SelectBuilder.prototype.limit  = function (n)     { this._params.limit = String(n); return this; };
+  SelectBuilder.prototype.then   = function (res,rej){ return rget(this.table, this._params).then(res, rej); };
 
-    try {
-      const sb = window.supabase.createClient(cfg.url, cfg.key, {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: true,
-          storageKey: "pinged-auth", // namespace to avoid collisions
-        },
-        global: { headers: { "x-client-info": "PingedWeb/1.0" } }
+  function Bridge(){}
+  Bridge.prototype.from   = function (t){ return new SelectBuilder(t); };
+  Bridge.prototype.insert = function (t,b){ return rpost(t,b); };
+  Bridge.prototype.update = function (t,b,p){ return rpatch(t,b,p); };
+  Bridge.prototype.delete = function (t,p){ return rdel(t,p); };
+
+  window.sbRest = new Bridge();
+
+  // Auth client
+  let __sb = { auth: { getSession: async()=>({data:{session:null}}),
+                       onAuthStateChange: ()=>({data:{subscription:{unsubscribe(){}}}}) } };
+  try {
+    if (BASE && KEY && window.supabase && typeof window.supabase.createClient === 'function') {
+      __sb = window.supabase.createClient(BASE, KEY, {
+        auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
       });
+    } else {
+      console.error('[sb-client] Missing SUPABASE_URL/KEY or supabase-js not loaded.');
+    }
+  } catch (e) { console.error('[sb-client] createClient failed:', e); }
 
-      // Save base + buckets for helper functions
-      sb.__functionsBase = cfg.functionsBase;
-      sb.__buckets = cfg.buckets;
-      return sb;
+  async function syncSession() {
+    try {
+      const { data } = await __sb.auth.getSession();
+      const sess = data && data.session;
+      window.sbAccessToken = (sess && sess.access_token) || null;
+      window.sbUser = (sess && sess.user) || null;
+      window.dispatchEvent(new CustomEvent('sb:session', { detail: { user: window.sbUser }}));
     } catch (e) {
-      console.error("[sb-client] createClient failed:", e);
-      return null;
+      window.sbAccessToken = null; window.sbUser = null;
     }
   }
 
-  // Public: get/create singleton
-  window.getSB = function getSB() {
-    if (instance) return instance;
-    instance = create();
-    window.__sb = instance;
-    window.sb = instance; // convenience alias in DevTools
-    return instance;
+  try {
+    __sb.auth.onAuthStateChange((_event, session) => {
+      window.sbAccessToken = (session && session.access_token) || null;
+      window.sbUser = (session && session.user) || null;
+      window.dispatchEvent(new CustomEvent('sb:session', { detail: { user: window.sbUser }}));
+    });
+  } catch (e) { console.warn('[sb-client] onAuthStateChange failed:', e); }
+
+  window.guardRequireAuth = async function guardRequireAuth(opts = {}) {
+    const redirectTo = opts.redirectTo || (CFG.ROUTES && CFG.ROUTES.LOGIN) || 'index.html';
+    await syncSession();
+    if (!window.sbUser) {
+      location.replace(redirectTo);
+      throw new Error('[auth-guard] Not authenticated: redirecting to ' + redirectTo);
+    }
   };
 
-  // Public: quick boolean
-  window.hasSB = function hasSB() {
-    return !!window.getSB();
-  };
-
-  // Helper: fetch with JWT from current session
-  window.sbAuthedFetch = async function sbAuthedFetch(url, opts = {}) {
-    const sb = window.getSB();
-    if (!sb) throw new Error("Supabase not initialised");
-    const { data } = await sb.auth.getSession();
-    const token = data?.session?.access_token;
-
-    const headers = new Headers(opts.headers || {});
-    if (!headers.has("Content-Type") && opts.body && typeof opts.body === "object") {
-      headers.set("Content-Type", "application/json");
-    }
-    if (token && !headers.has("Authorization")) {
-      headers.set("Authorization", `Bearer ${token}`);
-    }
-
-    const init = { ...opts, headers };
-    if (init.body && headers.get("Content-Type") === "application/json" && typeof init.body !== "string") {
-      init.body = JSON.stringify(init.body);
-    }
-    return fetch(url, init);
-  };
-
-  // Helper: call an Edge Function by name with JWT and optional query/body
-  window.callSupabaseFn = async function callSupabaseFn(name, { method = "GET", query = {}, body = null, headers = {} } = {}) {
-    const sb = window.getSB();
-    if (!sb) throw new Error("Supabase not initialised");
-    const base = sb.__functionsBase || "/functions/v1";
-    const isAbsolute = /^https?:\/\//i.test(base);
-
-    // Build URL: absolute base (functions domain) or relative path (local proxy)
-    const full = isAbsolute ? `${base.replace(/\/+$/, "")}/${name}` : `${base.replace(/\/+$/, "")}/${name}`;
-    const url = new URL(full, isAbsolute ? undefined : window.location.origin);
-    Object.entries(query || {}).forEach(([k, v]) => url.searchParams.set(k, String(v)));
-
-    const res = await window.sbAuthedFetch(url.toString(), { method, headers, body });
-    const text = await res.text();
-    let json;
-    try { json = JSON.parse(text); } catch { json = { raw: text }; }
-
-    if (!res.ok) {
-      const err = new Error(json?.error || `Function ${name} failed (${res.status})`);
-      err.status = res.status;
-      err.details = json?.details || json?.raw || null;
-      throw err;
-    }
-    return json;
-  };
-
-  // Helper: signed avatar URL from Storage (1h)
-  window.getSignedAvatarUrl = async function getSignedAvatarUrl(path) {
-    if (!path) return null;
-    const sb = window.getSB?.();
-    const bucket = (sb?.__buckets?.AVATARS) || "avatars";
-    const { data, error } = await sb.storage.from(bucket).createSignedUrl(path, 3600);
-    if (error) { console.warn("[avatar] sign failed:", error.message); return null; }
-    return data?.signedUrl ?? null;
-  };
-
-  // Warn if not initialised once DOM is ready (helps catch script order issues)
-  document.addEventListener("DOMContentLoaded", () => {
-    if (!window.getSB()) {
-      console.warn("[sb-client] Not initialised. Check script order and config values.");
-    }
-  });
+  window.getSB = () => __sb;
+  syncSession().finally(() => window.dispatchEvent(new Event('sb:ready')));
 })();

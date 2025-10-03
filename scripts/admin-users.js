@@ -1,201 +1,92 @@
-/* Admin Users UI — calls Edge Function 'admin-users'
-   Requires: logged-in session with role in public.user_roles (admin / super_admin)
-   Depends on: scripts/sb-client.js (getSB, callSupabaseFn)
+/* Author: Logan Poole — 30083609
+   FILE: /scripts/admin-users.js
+   Purpose: Admin users list (profiles) + create via Edge Function if available.
 */
 (function () {
-  const sb = window.getSB?.();
-  if (!sb) {
-    console.error("[users] Supabase not initialised — check script order and config.js values.");
-    document.addEventListener("DOMContentLoaded", () => {
-      const hint = document.getElementById("auth-hint");
-      if (hint) hint.style.display = "";
-    });
-    return;
+  const $ = (s, r=document)=>r.querySelector(s);
+
+  const CFG = window.PINGED_CONFIG || {};
+  const T   = Object.assign({ PROFILES:'profiles' }, CFG.TABLES || {});
+  const AVATAR_COL = (CFG.PROFILE && CFG.PROFILE.AVATAR_COLUMN) || 'avatar_url';
+
+  const listRoot = $('#admin-users');
+  const pageInfo = $('#page-info');
+  const qInput   = $('#q');
+  const hint     = $('#auth-hint');
+  const prevBtn  = $('#prev');
+  const nextBtn  = $('#next');
+  const createForm = $('#create-user-form');
+
+  let supa, me, page=0, limit=20, total=0;
+
+  function label(p){ return p.display_name || (p.username ? '@'+p.username : (p.email || 'User')); }
+  function avatar(p){ return p[AVATAR_COL] || 'assets/avatar-default.png'; }
+  function sb(){ return (typeof window.getSB === 'function' ? window.getSB() : (window.__sb || window.supabase)); }
+
+  async function isAdmin() {
+    const roles = ['admin','owner','super','superadmin','staff'];
+    const meta  = me?.app_metadata || me?.user_metadata || {};
+    if (meta?.is_admin || roles.includes(String(meta?.role||'').toLowerCase())) return true;
+    try {
+      const { data } = await supa.from(T.PROFILES).select('role,is_admin').or(`id.eq.${me.id},user_id.eq.${me.id}`).limit(1).maybeSingle();
+      return data?.is_admin === true || roles.includes(String(data?.role||'').toLowerCase());
+    } catch { return false; }
   }
 
-  // ------- elements -------
-  let state = { page: 1, perPage: 50, q: "" };
-
-  const listEl = document.getElementById("users-list");
-  const qEl = document.getElementById("q");
-  const perEl = document.getElementById("perPage");
-  const prevBtn = document.getElementById("prev");
-  const nextBtn = document.getElementById("next");
-  const pageInfo = document.getElementById("page-info");
-  const refreshBtn = document.getElementById("refresh");
-  const authHint = document.getElementById("auth-hint");
-
-  const cForm = document.getElementById("create-form");
-  const cEmail = document.getElementById("c-email");
-  const cPwd = document.getElementById("c-password");
-  const cUser = document.getElementById("c-username");
-  const cName = document.getElementById("c-displayname");
-  const cAvatar = document.getElementById("c-avatar");
-  const cConfirmed = document.getElementById("c-confirmed");
-  const cMsg = document.getElementById("create-msg");
-
-  // ------- helpers -------
-  function el(html) {
-    const div = document.createElement("div");
-    div.innerHTML = html.trim();
-    return div.firstElementChild;
-  }
-
-  function fmtDate(s) {
-    if (!s) return "—";
-    try { return new Date(s).toLocaleString(); } catch { return s; }
-  }
-
-  function userCard(u) {
-    const meta = u.user_metadata || {};
-    const banned = !!u.banned_until;
-    const card = el(`
-      <div class="card">
-        <div class="row space-between" style="gap:12px;">
-          <div class="stack" style="min-width:0;">
-            <div><strong>${u.email || "(no email)"}</strong></div>
-            <div class="muted">id: ${u.id}</div>
-            <div class="muted">${meta.display_name || meta.username || ""}</div>
-            <div class="muted">Created: ${fmtDate(u.created_at)}</div>
-          </div>
-          <div class="row" style="gap:6px; flex-wrap:wrap;">
-            <button class="small" data-act="ban">${banned ? "Unban" : "Ban"}</button>
-            <button class="small" data-act="promote">Make Admin</button>
-            <button class="small danger" data-act="del">Delete</button>
-          </div>
-        </div>
-      </div>
-    `);
-
-    // Delete
-    card.querySelector('[data-act="del"]').addEventListener("click", async () => {
-      if (!confirm(`Delete ${u.email || u.id}? This removes the auth user.`)) return;
-      try {
-        await window.callSupabaseFn("admin-users", {
-          method: "DELETE",
-          query: { id: u.id },
-        });
-        await load(state.page);
-      } catch (e) {
-        alert(`Delete failed: ${e.message}`);
-      }
-    });
-
-    // Ban / Unban
-    card.querySelector('[data-act="ban"]').addEventListener("click", async () => {
-      const banned_until = u.banned_until ? null : new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString();
-      try {
-        await window.callSupabaseFn("admin-users", {
-          method: "PATCH",
-          query: { id: u.id },
-          body: { banned_until }
-        });
-        await load(state.page);
-      } catch (e) {
-        alert(`Ban/Unban failed: ${e.message}`);
-      }
-    });
-
-    // Promote to admin -- now via Edge Function (service role)
-    card.querySelector('[data-act="promote"]').addEventListener("click", async () => {
-      if (!confirm(`Make ${u.email || u.id} an admin?`)) return;
-      try {
-        await window.callSupabaseFn("admin-users", {
-          method: "PATCH",
-          body: { action: "set_role", user_id: u.id, role: "admin" }
-        });
-        alert("User promoted to admin.");
-      } catch (e) {
-        alert(`Promote failed: ${e.message || e}`);
-      }
-    });
-
-    return card;
-  }
-
-  async function ensureLoggedIn() {
-    const { data } = await sb.auth.getSession();
-    if (!data?.session) {
-      if (authHint) authHint.style.display = "";
-      throw new Error("Not signed in");
+  async function fetchPage() {
+    const q = (qInput?.value || '').trim();
+    const from = page*limit;
+    let query = supa.from(T.PROFILES).select('*', { count:'exact' }).order('created_at', { ascending:false }).range(from, from+limit-1);
+    if (q) query = query.ilike('display_name', `%${q}%`);
+    const { data, count, error } = await query;
+    if (error) { listRoot.innerHTML = `<div class="muted">Error: ${error.message}</div>`; return; }
+    total = count || 0;
+    pageInfo && (pageInfo.textContent = `${total} total • page ${page+1}`);
+    listRoot.innerHTML='';
+    for (const p of (data || [])) {
+      const row = document.createElement('div'); row.className = 'user-row';
+      row.innerHTML = `<img class="avatar" src="${avatar(p)}" alt=""><div class="meta"><div class="name">${label(p)}</div><div class="sub muted">${p.email||''}</div></div>`;
+      listRoot.appendChild(row);
     }
   }
 
-  async function load(page = 1) {
+  async function fn(path){ const base = CFG.FUNCTIONS_BASE || `${CFG.SUPABASE_URL}/functions/v1`; return `${base}/${path}`; }
+
+  async function createUser(email, password) {
     try {
-      await ensureLoggedIn();
-    } catch {
-      // Page shows the hint; stop here.
-      listEl.innerHTML = "";
-      pageInfo.textContent = "";
-      return;
-    }
-
-    state.page = Math.max(1, Number(page || 1));
-    state.perPage = Math.max(1, Number(perEl?.value || 50));
-    state.q = (qEl?.value || "").trim();
-
-    listEl.innerHTML = `<div class="muted">Loading…</div>`;
-    pageInfo.textContent = `Page ${state.page}`;
-
-    try {
-      const data = await window.callSupabaseFn("admin-users", {
-        method: "GET",
-        query: { page: state.page, perPage: state.perPage, q: state.q || "" }
+      const { data: { session } } = await supa.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+      const res = await fetch(await fn('admin-users?op=create'), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
       });
-
-      const users = data?.users || [];
-      listEl.innerHTML = "";
-      users.forEach(u => listEl.appendChild(userCard(u)));
-      if (users.length === 0) listEl.innerHTML = `<div class="empty">No users found.</div>`;
-
-      // Naive next/prev enablement (no total pages returned reliably)
-      prevBtn.disabled = state.page <= 1;
-      nextBtn.disabled = users.length < state.perPage;
-      pageInfo.textContent = `Page ${state.page} • Showing ${users.length} user(s)`;
-    } catch (e) {
-      listEl.innerHTML = `<div class="error">Failed to load users: ${e.message}</div>`;
-      prevBtn.disabled = true;
-      nextBtn.disabled = true;
-    }
+      if (!res.ok) throw new Error(`Function error (${res.status})`);
+      return await res.json();
+    } catch (e) { return { error: e.message || String(e) }; }
   }
 
-  async function onCreate(e) {
-    e.preventDefault();
-    cMsg.textContent = "";
-    const payload = {
-      email: cEmail.value.trim(),
-      password: cPwd.value ? cPwd.value : undefined,
-      email_confirm: !!cConfirmed.checked,
-      user_metadata: {
-        username: cUser.value || undefined,
-        display_name: cName.value || undefined,
-        profile_pic: cAvatar.value || undefined
-      }
-    };
-    if (!payload.email) {
-      cMsg.textContent = "Email is required.";
-      return;
-    }
+  async function boot() {
+    supa = sb();
+    const se = await supa?.auth?.getSession(); me = se?.data?.session?.user || null; if (!me) return;
+    if (!(await isAdmin())) { hint && (hint.textContent = 'You are not an admin.'); return; }
+    await fetchPage();
 
-    try {
-      await window.callSupabaseFn("admin-users", { method: "POST", body: payload });
-      cMsg.textContent = "User created.";
-      cForm.reset();
-      await load(1);
-    } catch (e) {
-      cMsg.textContent = `Create failed: ${e.message}`;
-    }
+    qInput?.addEventListener('input', ()=>{ page=0; fetchPage(); });
+    prevBtn?.addEventListener('click', ()=>{ if (page>0){ page--; fetchPage(); }});
+    nextBtn?.addEventListener('click', ()=>{ if ((page+1)*limit < total){ page++; fetchPage(); }});
+
+    createForm?.addEventListener('submit', async (ev)=>{
+      ev.preventDefault();
+      const email = (createForm.querySelector('#new-email')?.value||'').trim();
+      const pass  = (createForm.querySelector('#new-password')?.value||'').trim();
+      if (!email || !pass) return;
+      const res = await createUser(email, pass);
+      hint && (hint.textContent = res?.error ? ('Create failed: ' + res.error) : 'User created (function).');
+      fetchPage();
+    });
   }
 
-  // ------- init -------
-  document.addEventListener("DOMContentLoaded", () => {
-    if (cForm) cForm.addEventListener("submit", onCreate);
-    if (refreshBtn) refreshBtn.addEventListener("click", () => load(state.page));
-    if (qEl) qEl.addEventListener("input", () => load(1));
-    if (perEl) perEl.addEventListener("change", () => load(1));
-    if (prevBtn) prevBtn.addEventListener("click", () => load(state.page - 1));
-    if (nextBtn) nextBtn.addEventListener("click", () => load(state.page + 1));
-    load(1);
-  });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 })();
