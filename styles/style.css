@@ -1,27 +1,34 @@
 /* Author: Logan Poole — 30083609
-   FILE: styles/style.css (updated) */
+   FILE: styles/style.css (cleaned & updated) */
 
 /* ================== Root & Themes ================== */
 :root {
   --accent: #00C2A8;
   --accent-ink: #0b7a57;
+
   --bg: #ffffff;
   --card-bg: #ffffff;
   --section-bg: #f9f9f9;
+
   --text: #222;
   --sub: #555;
+
   --header-bg: linear-gradient(145deg, #00C2A8 0%, #00A28A 100%);
+
   --link: var(--accent);
   --link-hover: #008f77;
+
   --border: #e6e6e6;
   --ring: rgba(0, 194, 168, .25);
   --menu-hover: rgba(0, 0, 0, .05);
   --menu-outline: var(--accent);
   --menu-outline-soft: rgba(0, 194, 168, .18);
+
   --z-header: 3000;
   --z-dropdown: 4000;
   --z-modal: 4500;
   --z-toast: 5000;
+
   --radius: 14px;
   --radius-sm: 10px;
   --gap: 16px;
@@ -30,14 +37,18 @@
 [data-theme='dark'] {
   --accent: #00C2A8;
   --accent-ink: #00b894;
+
   --bg: #121212;
   --card-bg: #1f1f1f;
   --section-bg: #1a1a1a;
+
   --text: #f0f0f0;
   --sub: #bdbdbd;
+
   --header-bg: linear-gradient(145deg, #003c37 0%, #00564b 100%);
   --link: #3de8ca;
   --link-hover: #76fff0;
+
   --border: #2b2b2b;
   --ring: rgba(0, 194, 168, .35);
   --menu-hover: rgba(255, 255, 255, .06);
@@ -176,8 +187,8 @@ section {
 .home-link {
   display: flex;
   align-items: center;
-  text-decoration: none;
   position: relative;
+  text-decoration: none;
 }
 
 .ping-effect-gif {
@@ -232,7 +243,6 @@ section {
   cursor: pointer;
 }
 
-/* Only hide protected/authed nav items while they actually have [hidden] */
 .nav-right [data-auth="protected"][hidden],
 .nav-right [data-auth="authed"][hidden] {
   display: none !important;
@@ -367,7 +377,6 @@ section {
   opacity: .85;
 }
 
-/* Allow JS to toggle Admin link visibility */
 .topnav a#nav-admin {
   display: none;
 }
@@ -611,8 +620,9 @@ form button[type="submit"]:hover {
   gap: 18px;
 }
 
-/* ================== Buttons (base) ================== */
-button {
+/* ================== Buttons (base + utilities) ================== */
+button,
+.btn {
   padding: 10px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -623,27 +633,56 @@ button {
   transition: background .2s, border-color .2s, transform .02s ease-in-out;
 }
 
-button:hover {
+button:hover,
+.btn:hover {
   background: var(--menu-hover);
 }
 
-button:active {
+button:active,
+.btn:active {
   transform: translateY(1px);
 }
 
-button:focus-visible {
+button:focus-visible,
+.btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-button.primary {
+button.primary,
+.btn.btn-primary {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
 }
 
-button.primary:hover {
+button.primary:hover,
+.btn.btn-primary:hover {
   filter: brightness(.96);
+}
+
+.btn.btn-secondary {
+  background: #eef7f5;
+  border-color: #d7eee9;
+  color: #0c6457;
+}
+
+.btn.btn-ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: inherit;
+}
+
+.badge {
+  display: inline-block;
+  min-width: 18px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: #f33;
+  color: #fff;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1;
 }
 
 /* ================== Misc Components ================== */
@@ -660,16 +699,6 @@ button.primary:hover {
   object-fit: cover;
   border: 1px solid var(--border);
   background: #f6f7f9;
-}
-
-.badge {
-  padding: 10px 12px;
-  background: #eef;
-  border: 1px solid #dde;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #333;
-  margin-bottom: 18px;
 }
 
 /* Legal/support block */
@@ -958,10 +987,7 @@ button.primary:hover {
     max-width: 120px;
   }
 
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-
+  .form-grid,
   .row {
     grid-template-columns: 1fr;
   }
@@ -979,7 +1005,7 @@ button.primary:hover {
    APPENDS: Feed layout, Image modal, Chat layout
    ========================================================= */
 
-/* ---------- FEED (centered column + cards) ---------- */
+/* ---------- FEED ---------- */
 .feed-wrapper {
   display: flex;
   justify-content: center;
@@ -1005,11 +1031,9 @@ button.primary:hover {
   margin-bottom: 16px;
 }
 
-/* NEW: smarter composer row so controls align cleanly */
 .composer-row {
   display: grid;
   grid-template-columns: 1fr minmax(0, 220px) auto auto;
-  /* file | url | select | button */
   gap: 10px;
   align-items: center;
   margin-top: 8px;
@@ -1020,7 +1044,6 @@ button.primary:hover {
   resize: vertical;
 }
 
-/* feed list + card bits */
 .feed-list {
   list-style: none;
   padding: 0;
@@ -1051,15 +1074,14 @@ button.primary:hover {
   font-weight: 600;
 }
 
-.feed-item .who .sub {
+.feed-item .who .sub,
+.feed-item .ts {
   color: var(--sub);
   font-size: 12px;
 }
 
 .feed-item .ts {
   margin-left: auto;
-  color: var(--sub);
-  font-size: 12px;
 }
 
 .feed-item .body {
@@ -1070,13 +1092,10 @@ button.primary:hover {
   white-space: pre-wrap;
 }
 
-/* NEW: render images without fixed height to avoid letterboxing/cropping */
 .feed-item img.photo {
   width: 100%;
   height: auto;
-  /* natural aspect ratio */
   max-height: 720px;
-  /* safety cap for very tall images */
   border-radius: 12px;
   cursor: zoom-in;
   margin-top: 8px;
@@ -1089,15 +1108,15 @@ button.primary:hover {
   font-size: 12px;
 }
 
-/* ---------- FEED Image Modal ---------- */
+/* FEED Image Modal */
 .img-modal {
   padding: 0;
   border: none;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, .75);
 }
 
 .img-modal::backdrop {
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, .65);
 }
 
 .img-modal img {
@@ -1121,14 +1140,14 @@ button.primary:hover {
   width: 40px;
   height: 40px;
   border-radius: 20px;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, .45);
   color: #fff;
   border: none;
   font-size: 22px;
   cursor: pointer;
 }
 
-/* ---------- CHAT (two-pane layout) ---------- */
+/* ---------- CHAT ---------- */
 .chat-layout {
   display: grid;
   grid-template-columns: 280px 1fr;
@@ -1275,23 +1294,7 @@ button.primary:hover {
   margin-left: auto;
 }
 
-/* push buttons right */
-
-/* ---------- Responsive tweaks for Feed/Chat ---------- */
-@media (max-width: 768px) {
-  .composer-row {
-    grid-template-columns: 1fr;
-  }
-
-  .chat-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .chat-log {
-    height: 50vh;
-  }
-}
-
+/* Card grid (avatar above name) */
 .friends-grid-cards {
   list-style: none;
   padding: 0;
@@ -1318,6 +1321,11 @@ button.primary:hover {
   background: var(--menu-hover);
 }
 
+.friend-card:focus-visible {
+  outline: 3px solid var(--menu-outline);
+  outline-offset: 2px;
+}
+
 .friend-card .avatar-lg {
   width: 96px;
   height: 96px;
@@ -1338,52 +1346,111 @@ button.primary:hover {
   text-align: center;
 }
 
-/* Modal layout */
+/* ---------- FRIEND MODAL (compact + accent) ---------- */
+html:has(#friendModal[open]) {
+  overflow: hidden;
+}
+
 .friend-modal {
   padding: 0;
   border: none;
+  background: rgba(17, 24, 28, .55);
+}
+
+.friend-modal::backdrop {
+  background: rgba(17, 24, 28, .55);
+  backdrop-filter: blur(2px);
 }
 
 .friend-modal .friend-modal-body {
+  --friend-accent: var(--accent);
+  --friend-accent-soft: var(--menu-outline-soft);
+
+  box-sizing: border-box;
+  width: min(520px, 92vw);
+  /* wider to match your mock */
+  max-height: 78vh;
+  overflow: auto;
+
+  margin: 38px auto;
+  padding: 14px 16px 12px;
   background: var(--card-bg);
   color: var(--text);
-  width: min(560px, 96vw);
-  margin: 56px auto;
+  border: 2px solid var(--friend-accent);
   border-radius: 14px;
-  border: 2px solid var(--menu-outline);
-  padding: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .28);
+  position: relative;
+  animation: friend-pop .18s ease-out;
 }
 
+.friend-modal .friend-modal-body::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+  background: linear-gradient(90deg, var(--friend-accent), var(--friend-accent-soft));
+}
+
+#friendClose {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .38);
+  color: #fff;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* avatar a bit larger */
 .friend-avatar-lg {
-  width: 120px;
-  height: 120px;
+  width: 96px;
+  height: 96px;
+  display: block;
+  margin: 6px auto 4px;
   border-radius: 50%;
   object-fit: cover;
-  display: block;
-  margin: 0 auto 10px;
-  border: 1px solid var(--border);
+  border: 2px solid var(--friend-accent);
+  box-shadow: 0 0 0 3px var(--friend-accent-soft);
+  background: #f3f4f6;
 }
 
+/* header */
 .friend-head {
   text-align: center;
-  margin-bottom: 8px;
+  margin: 4px 0 0;
 }
 
 .friend-name {
-  font-size: 1.2rem;
-  font-weight: 700;
+  font-size: 1.1rem;
+  font-weight: 800;
+  display: inline-block;
 }
 
 .friend-user {
   font-size: .9rem;
+  color: var(--sub);
+  display: inline-block;
+  margin-left: 8px;
 }
 
+#friendRole {
+  margin-left: 6px;
+}
+
+/* details */
 .kv-list {
   list-style: none;
   padding: 0;
-  margin: 12px 0;
+  margin: 10px auto 0;
   display: grid;
   gap: 8px;
+  max-width: 420px;
 }
 
 .kv {
@@ -1400,24 +1467,88 @@ button.primary:hover {
 
 .kv .v a {
   color: var(--link);
-  word-break: break-all;
+  word-break: break-word;
 }
 
+/* actions — equal width */
 .friend-actions {
   display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 12px;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.friend-actions>button {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.friend-actions .primary {
+  background: var(--friend-accent);
+  border: 1px solid var(--friend-accent);
+  color: #fff;
+}
+
+.friend-actions .primary:hover {
+  filter: brightness(.96);
 }
 
 .friend-actions .danger {
-  border: 1px solid #e6b3b3;
-  background: #fff0f0;
+  background: #fff8f8;
+  border: 1px solid #ffd7d7;
   color: #8a1f1f;
 }
 
-@media (max-width: 520px) {
+.friend-actions>button:focus-visible {
+  outline: 3px solid var(--menu-outline);
+  outline-offset: 2px;
+}
+
+/* Pop-in */
+@keyframes friend-pop {
+  from {
+    transform: translateY(6px) scale(.985);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@media (max-width:520px) {
   .kv {
     grid-template-columns: 1fr;
   }
+
+  .friend-modal .friend-modal-body {
+    width: min(440px, 94vw);
+    padding: 12px 14px 10px;
+  }
+
+  .friend-actions {
+    flex-direction: column;
+  }
 }
+
+/* ---------- Small responsive tweaks for Feed/Chat ---------- */
+@media (max-width:768px) {
+  .composer-row {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-log {
+    height: 50vh;
+  }
+}
+
+/* Optional */
+.dropdown { top: calc(100% + 8px); }

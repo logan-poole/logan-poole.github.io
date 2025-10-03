@@ -10,23 +10,6 @@
   <link rel="stylesheet" href="styles/style.css" />
   <link rel="stylesheet" href="styles/friends.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
-  <style>
-    .muted {
-      color: #9aa
-    }
-
-    .badge {
-      display: inline-block;
-      min-width: 18px;
-      padding: 2px 6px;
-      border-radius: 10px;
-      background: #f33;
-      color: #fff;
-      text-align: center;
-      font-size: 12px;
-      line-height: 1;
-    }
-  </style>
 </head>
 
 <body class="friends-page" data-require-auth="true">
@@ -41,11 +24,15 @@
       <a href="privacy.html" data-auth="public" hidden>Privacy</a>
       <a href="terms.html" data-auth="public" hidden>Terms</a>
       <a href="support.html" data-auth="public" hidden>Support</a>
+
       <a href="dashboard.html" data-auth="protected" hidden>Dashboard</a>
       <a href="feed.html" data-auth="protected" hidden>Feed</a>
       <a href="map.html" data-auth="protected" hidden>Map</a>
-      <a href="friends.html" data-auth="protected" aria-current="page" hidden>Friends <span id="nav-friends-badge"
-          class="badge" hidden>0</span></a>
+
+      <a href="friends.html" data-auth="protected" aria-current="page" hidden>
+        Friends <span id="nav-friends-badge" class="badge" hidden>0</span>
+      </a>
+
       <a href="settings.html" data-auth="protected" hidden>Settings</a>
       <a href="chat.html" data-auth="protected" hidden>Chat</a>
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme" data-auth="protected"
@@ -58,23 +45,26 @@
     <h1 class="page-title">Friends</h1>
     <p id="friends-msg" class="muted"></p>
 
+    <!-- Accepted friends -->
     <section id="current-friends-section" class="friends-section">
-      <div class="friends-header">
-        <div class="lhs">
-          <h2>Current friends</h2>
+      <div class="friends-header" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+        <div class="lhs" style="display:flex;gap:10px;align-items:center;">
+          <h2 style="margin:0;">Current friends</h2>
           <input id="friends-filter" type="search" placeholder="Filter by name…" aria-label="Filter friends" />
         </div>
         <div class="rhs">
           <button id="refresh-friends" class="btn btn-secondary" type="button">Refresh</button>
         </div>
       </div>
+
       <div id="friends-accepted" class="friends-grid" role="list"></div>
       <p id="friends-empty" class="muted">No friends yet.</p>
     </section>
 
+    <!-- Requests -->
     <section class="friends-section">
       <h2>Requests</h2>
-      <div class="requests">
+      <div class="requests" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
         <div class="col">
           <h3>Incoming</h3>
           <ul id="friends-incoming" class="stack" role="list"></ul>
@@ -86,6 +76,7 @@
       </div>
     </section>
 
+    <!-- Add -->
     <section class="friends-section">
       <h2>Add a friend</h2>
       <form id="friend-add-form" class="friend-add" autocomplete="off">
@@ -96,22 +87,46 @@
     </section>
   </main>
 
+  <!-- Friend Profile Modal -->
+  <dialog id="friendModal" class="friend-modal" aria-modal="true">
+    <div class="friend-modal-body">
+      <button id="friendClose" class="img-modal-close" aria-label="Close">×</button>
+
+      <img id="friendAvatar" class="friend-avatar-lg" alt="">
+      <div class="friend-head">
+        <span id="friendName" class="friend-name"></span>
+        <span id="friendUser" class="friend-user muted"></span>
+        <span id="friendRole" class="role-badge" hidden>Admin</span>
+      </div>
+
+      <!-- Stats / details (JS fills) -->
+      <ul id="friendFields" class="kv-list"></ul>
+
+      <div class="friend-actions">
+        <button id="locateBtn" class="primary" type="button">Location</button>
+        <button id="msgBtn" class="primary" type="button">Message</button>
+        <button id="unfriendBtn" class="danger" type="button">Unfriend</button>
+      </div>
+    </div>
+  </dialog>
+
   <footer class="container">
     <p>&copy; 2025 Pinged. All rights reserved.</p>
   </footer>
 
   <!-- SCRIPTS (ORDER MATTERS) -->
-  <script src="scripts/config.js?v=11"></script>
+  <script src="scripts/config.js?v=12"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="scripts/sb-client.js?v=11"></script>
-  <script src="scripts/page-flags.js?v=11" defer></script>
-  <script src="scripts/profile-bootstrap.js?v=11" defer></script>
-  <script src="scripts/auth-guard.js?v=11"></script>
-  <script src="scripts/auth-modals.js?v=11"></script>
-  <script src="scripts/scripts.js?v=11" defer></script>
-  <script src="scripts/theme-toggle.js?v=11" defer></script>
-  <script src="scripts/friends.js?v=11" defer></script>
-  <script src="scripts/friends-ui.js?v=11" defer></script>
+  <script src="scripts/sb-client.js?v=12"></script>
+  <script src="scripts/page-flags.js?v=12" defer></script>
+  <script src="scripts/profile-bootstrap.js?v=12" defer></script>
+  <script src="scripts/auth-guard.js?v=12"></script>
+  <script src="scripts/auth-modals.js?v=12"></script>
+  <script src="scripts/scripts.js?v=12" defer></script>
+  <script defer src="scripts/nav-dropdown.js?v=2"></script>
+  <script src="scripts/theme-toggle.js?v=12" defer></script>
+  <script src="scripts/friends.js?v=12" defer></script>
+  <script src="scripts/friends-ui.js?v=12" defer></script>
 </body>
 
 </html>

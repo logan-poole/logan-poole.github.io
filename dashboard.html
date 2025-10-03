@@ -18,34 +18,50 @@ dashboard.html
 
 <body class="dashboard-page" data-require-auth="true">
   <header class="topnav">
-    <a href="index.html" class="nav-left" style="text-decoration:none;">
+    <a href="dashboard.html" class="nav-left" style="text-decoration:none;">
       <img src="assets/logo.png" class="logo small-logo" alt="Pinged Logo" />
       <span class="app-name">Pinged</span>
     </a>
+
     <nav class="nav-right">
-      <!-- Public (hidden on protected pages to avoid flicker) -->
-      <a href="index.html" data-auth="public" hidden>Home</a>
-      <a href="faq.html" data-auth="public" hidden>FAQs</a>
-      <a href="privacy.html" data-auth="public" hidden>Privacy</a>
-      <a href="terms.html" data-auth="public" hidden>Terms</a>
-      <a href="support.html" data-auth="public" hidden>Support</a>
+      <!-- Theme toggle can live outside the menu so it’s always one click -->
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌓</button>
 
-      <!-- Protected (shown after auth) -->
-      <a href="dashboard.html" data-auth="protected" aria-current="page" hidden>Dashboard</a>
-      <a href="map.html" data-auth="protected" hidden>Map</a>
-      <a href="chat.html" data-auth="protected" hidden>Chat</a>
-      <a href="feed.html" data-auth="protected" hidden>Feed</a>
-      <a href="friends.html" data-auth="protected" hidden>Friends</a>
-      <a href="settings.html" data-auth="protected" hidden>Settings</a>
+      <!-- Profile menu (shown when authed) -->
+      <div class="profile-menu" data-auth="protected" hidden>
+        <button id="profileMenuBtn" class="avatar-btn" type="button" aria-haspopup="menu" aria-expanded="false"
+          aria-label="Open profile menu">
+          <img id="navAvatar" class="avatar-sm" src="assets/avatar.png" alt="">
+        </button>
 
-      <!-- Admin (shown only if user has role; toggled by admin-nav.js / ui.js badge) -->
-      <a id="nav-admin" href="admin/admin.html" style="display:none">Admin</a>
+        <ul id="profileMenuList" class="dropdown" role="menu" hidden>
+          <li class="menu-label">Navigation</li>
+          <li><a role="menuitem" href="dashboard.html">Dashboard</a></li>
+          <li><a role="menuitem" href="map.html">Map</a></li>
+          <li><a role="menuitem" href="chat.html">Chat</a></li>
+          <li><a role="menuitem" href="feed.html">Feed</a></li>
+          <li><a role="menuitem" href="friends.html">Friends</a></li>
+          <li><a role="menuitem" href="settings.html">Settings</a></li>
 
-      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme" data-auth="protected" hidden>🌓</button>
+          <!-- Optional admin link your JS can toggle -->
+          <li><a role="menuitem" id="nav-admin" href="admin.html" style="display:none;">Admin</a></li>
 
-      <!-- profile dropdown injected by scripts/ui.js -->
+          <li class="divider"></li>
+          <li class="menu-label">Help</li>
+          <li><a role="menuitem" href="faq.html">FAQs</a></li>
+          <li><a role="menuitem" href="support.html">Support</a></li>
+
+          <li class="divider"></li>
+          <li>
+            <button id="navLogout" class="menu-item menu-danger" type="button" role="menuitem">
+              Log out
+            </button>
+          </li>
+        </ul>
+      </div>
     </nav>
   </header>
+
 
   <main class="content">
     <div class="dash-inner">
@@ -154,11 +170,14 @@ dashboard.html
   <script src="scripts/admin-nav.js" defer></script>
 
   <!-- 8) Theme toggle -->
-  <script src="scripts/theme-toggle.js" defer></script>
+  <script defer src="scripts/nav-dropdown.js?v=2"></script>
+  <script defer src="scripts/theme-toggle.js?v=12"></script>
+
 
   <!-- 9) Page boot -->
   <script src="scripts/dashboard.js" defer></script>
 
 
 </body>
+
 </html>

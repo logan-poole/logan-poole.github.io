@@ -75,40 +75,33 @@ PURPOSE
       if (u.searchParams.get('embed') === '1') document.documentElement.classList.add('is-embed');
     })();
   </script>
-<!-- 1) App config -->
-<script src="scripts/config.js"></script>
 
-<!-- 2) Supabase UMD (must be before sb-client.js for sync init) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- 1) App config -->
+  <script src="scripts/config.js"></script>
+  <!-- 2) Supabase UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- 3) Single Supabase client -->
+  <script src="scripts/sb-client.js"></script>
+  <!-- 4) Page flags / profile bootstrap -->
+  <script src="scripts/page-flags.js"></script>
+  <script src="scripts/profile-bootstrap.js"></script>
+  <!-- 5) Auth guard & modals -->
+  <script src="scripts/auth-guard.js"></script>
+  <script src="scripts/auth-modals.js"></script>
+  <!-- 6) Shared header/nav -->
+  <script src="scripts/scripts.js"></script>
+  <!-- 8) Theme toggle -->
+  <script defer src="scripts/nav-dropdown.js?v=2"></script>
+  <script defer src="scripts/theme-toggle.js"></script>
 
-<!-- 3) Single Supabase client -->
-<script src="scripts/sb-client.js"></script>
+  <!-- Map libs -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.js"></script>
+  <script
+    src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.min.js"></script>
+  <script src="https://unpkg.com/@mapbox/mapbox-gl-language@1.0.1/dist/mapbox-gl-language.js"></script>
 
-<!-- 4) Page flags / profile bootstrap (optional but recommended) -->
-<script src="scripts/page-flags.js"></script>
-<script src="scripts/profile-bootstrap.js"></script>
-
-<!-- 5) Auth guard and modals (public pages can keep modals; guard is for protected pages) -->
-<script src="scripts/auth-guard.js"></script>
-<script src="scripts/auth-modals.js"></script>
-
-<!-- 6) Shared header/nav + small helpers -->
-<script src="scripts/scripts.js"></script>
-
-<!-- 7) Page feature (add exactly what this page needs; see below) -->
-
-<!-- 8) Theme toggle (once) -->
-<script defer src="scripts/theme-toggle.js"></script>
-
-<!-- Map libs -->
-<script src="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.js"></script>
-<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.min.js"></script>
-<script src="https://unpkg.com/@mapbox/mapbox-gl-language@1.0.1/dist/mapbox-gl-language.js"></script>
-
-<!-- Page feature -->
-<script src="scripts/map.js"></script>
-
-
+  <!-- Page feature -->
+  <script src="scripts/map.js"></script>
 </body>
 
 </html>
