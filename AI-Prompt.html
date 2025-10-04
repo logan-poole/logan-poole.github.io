@@ -1,0 +1,1012 @@
+<!doctype html>
+<!-- FILE: ai-prompt-workbench.html
+     Purpose: Interactive, beginner-friendly prompt builder (standalone, offline).
+-->
+<html lang="en" data-theme="system">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Prompt Workbench — Beginner Friendly</title>
+  <style>
+    /* =============== THEME TOKENS =============== */
+    :root {
+      --bg: #0f1115;
+      --panel: #141923;
+      --card: #161b26;
+      --ink: #eaf2ff;
+      --muted: #9db0cc;
+      --accent: #00c2a8;
+      --accent-ink: #052e28;
+      --border: #273043;
+      --good: #22b573;
+      --bad: #ef476f;
+      --input: #0b1018;
+      --hover: #0d1219;
+      --pill: #0c111a;
+      --highlight: #0b121a;
+      /* NEW: themeable sidebar item tokens */
+      --item: #0e141e;
+      --item-hover: #0b121a;
+      --item-active: #0b121a;
+      --star: #ffd166;
+    }
+
+    :root[data-theme="light"] {
+      --bg: #f7f9fc;
+      --panel: #fff;
+      --card: #fff;
+      --ink: #0f172a;
+      --muted: #596780;
+      --accent: #00a58f;
+      --accent-ink: #06241f;
+      --border: #e6e9f0;
+      --good: #17a767;
+      --bad: #d43f67;
+      --input: #f2f5fa;
+      --hover: #f3f6fb;
+      --pill: #f3f6fb;
+      --highlight: #eef3fa;
+      --item: #ffffff;
+      --item-hover: var(--highlight);
+      --item-active: var(--highlight);
+      --star: #e0a600;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root[data-theme="system"] {
+        --bg: #f7f9fc;
+        --panel: #fff;
+        --card: #fff;
+        --ink: #0f172a;
+        --muted: #596780;
+        --accent: #00a58f;
+        --accent-ink: #06241f;
+        --border: #e6e9f0;
+        --good: #17a767;
+        --bad: #d43f67;
+        --input: #f2f5fa;
+        --hover: #f3f6fb;
+        --pill: #f3f6fb;
+        --highlight: #eef3fa;
+        --item: #ffffff;
+        --item-hover: var(--highlight);
+        --item-active: var(--highlight);
+        --star: #e0a600;
+      }
+    }
+
+    /* =============== LAYOUT =============== */
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      height: 100%
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 15.5px/1.55 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      grid-template-rows: auto 1fr auto;
+      grid-template-areas:
+        "aside header" "aside main" "aside footer";
+    }
+
+    header {
+      grid-area: header;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.12rem
+    }
+
+    .pill {
+      font-size: .75rem;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      color: var(--muted);
+      background: var(--pill)
+    }
+
+    aside {
+      grid-area: aside;
+      border-right: 1px solid var(--border);
+      padding: 16px 12px;
+      background: var(--panel);
+      overflow: auto
+    }
+
+    main {
+      grid-area: main;
+      overflow: auto;
+      padding: 16px
+    }
+
+    footer {
+      grid-area: footer;
+      padding: 10px 16px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      background: var(--panel)
+    }
+
+    .inline {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px
+    }
+
+    @media (max-width: 900px) {
+      body {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto 1fr auto;
+        grid-template-areas: "header" "aside" "main" "footer"
+      }
+
+      .row {
+        grid-template-columns: 1fr
+      }
+    }
+
+    /* =============== CONTROLS =============== */
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--ink);
+      padding: 9px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: .95rem;
+    }
+
+    .btn:hover {
+      background: var(--hover)
+    }
+
+    .btn.accent {
+      background: var(--accent);
+      color: #03201c;
+      border-color: transparent
+    }
+
+    .btn.good {
+      background: var(--good);
+      color: #04160e;
+      border-color: transparent
+    }
+
+    .btn.bad {
+      background: var(--bad);
+      color: #270711;
+      border-color: transparent
+    }
+
+    .btn.ghost {
+      background: transparent
+    }
+
+    .switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none
+    }
+
+    .switch input {
+      appearance: none;
+      width: 36px;
+      height: 20px;
+      border-radius: 999px;
+      background: var(--pill);
+      border: 1px solid var(--border);
+      position: relative
+    }
+
+    .switch input:after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--ink);
+      transition: .18s
+    }
+
+    .switch input:checked {
+      background: var(--accent)
+    }
+
+    .switch input:checked:after {
+      left: 18px
+    }
+
+    input[type="text"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--input);
+      color: var(--ink);
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical
+    }
+
+    /* =============== SIDEBAR =============== */
+    .search {
+      position: sticky;
+      top: 0;
+      background: var(--panel);
+      padding-bottom: 10px
+    }
+
+    input[type="search"] {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      outline: none;
+      background: var(--input);
+      color: var(--ink);
+    }
+
+    .section-label {
+      margin: 12px 6px 6px;
+      color: var(--muted);
+      font-size: .9rem
+    }
+
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px
+    }
+
+    .item {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: var(--item);
+      cursor: pointer;
+    }
+
+    .item:hover {
+      background: var(--item-hover)
+    }
+
+    .item small {
+      color: var(--muted);
+      display: block
+    }
+
+    .item.active {
+      outline: 2px solid var(--accent);
+      background: var(--item-active)
+    }
+
+    /* line showing title + star */
+    .rowline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between
+    }
+
+    .favmark {
+      color: var(--star);
+      font-size: 0.95rem;
+      margin-left: 8px
+    }
+
+    /* =============== CARDS & CHIPS =============== */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px
+    }
+
+    .title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px
+    }
+
+    .title h2 {
+      margin: 0;
+      font-size: 1.05rem
+    }
+
+    .tag {
+      font-size: .72rem;
+      padding: 2px 7px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted)
+    }
+
+    .tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap
+    }
+
+    label {
+      display: block;
+      margin: 10px 0 4px;
+      color: var(--muted)
+    }
+
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 6px 0 8px
+    }
+
+    .chip {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--pill);
+      cursor: pointer;
+      font-size: .85rem
+    }
+
+    .chip:hover {
+      background: var(--hover)
+    }
+
+    .chip[data-active="1"] {
+      outline: 1px dashed var(--accent);
+      background: var(--highlight)
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      align-items: stretch
+    }
+
+    /* =============== PREVIEW =============== */
+    pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      margin: 0;
+      font: 13.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    .copy-note {
+      color: var(--muted);
+      font-size: .85rem
+    }
+
+    .fav {
+      cursor: pointer;
+      user-select: none
+    }
+
+    .fav.active {
+      color: var(--star)
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>AI Prompt Workbench</h1>
+    <span class="pill">Beginner Mode: click chips, no typing needed</span>
+    <span class="pill" id="count"></span>
+    <div class="inline" style="margin-left:auto">
+      <label class="switch" title="Beginner Mode (chips & wizards)">
+        <span style="color:var(--muted); font-size:.85rem">Beginner Mode</span>
+        <input id="beginnerToggle" type="checkbox" checked>
+      </label>
+      <button class="btn ghost" id="themeBtn" title="Theme: System / Light / Dark">Theme: System</button>
+      <button class="btn ghost" id="exportBtn" title="Export your custom data">Export</button>
+      <label class="btn ghost" title="Import data JSON" for="importFile">Import</label>
+      <input id="importFile" type="file" accept="application/json" hidden />
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside>
+    <div class="search">
+      <input id="q" type="search" placeholder="Search templates… (e.g. tests, SQL, React)" />
+      <div class="inline" style="margin-top:8px">
+        <label class="inline"><input id="onlyFav" type="checkbox" /> &nbsp;Show favorites</label>
+      </div>
+    </div>
+
+    <div class="section-label">Templates</div>
+    <div class="list" id="templateList"></div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <div class="row">
+      <!-- Template Metadata & Fields -->
+      <div class="card" id="metaCard">
+        <div class="title">
+          <h2 id="tplTitle">Choose a template</h2>
+          <div class="inline">
+            <span id="favToggle" class="fav" title="Favorite">☆</span>
+            <span class="tags" id="tplTags"></span>
+          </div>
+        </div>
+        <div id="tplDesc" style="color:var(--muted); margin-bottom:8px"></div>
+
+        <!-- Global add-ons -->
+        <div class="title" style="margin-top:12px">
+          <h2 style="font-size:.98rem">Global add-ons (optional)</h2>
+          <span style="color:var(--muted); font-size:.86rem">Click chips to add details—applies to all prompts.</span>
+        </div>
+
+        <label>Context (reused across prompts)</label>
+        <div class="chips" id="ctxChips"></div>
+        <textarea id="global_context" placeholder="You can still type here if you like."></textarea>
+
+        <div class="split" style="margin-top:8px">
+          <div>
+            <label>Style / Tone</label>
+            <div class="chips" id="styleChips"></div>
+            <select id="global_style">
+              <option value="">— None —</option>
+              <option>Concise (bullet-first)</option>
+              <option>Detailed (step-by-step)</option>
+              <option>Senior Engineer tone</option>
+              <option>Teacher/explainer tone</option>
+            </select>
+          </div>
+          <div>
+            <label>Constraints</label>
+            <div class="chips" id="constraintChips"></div>
+            <select id="global_constraints">
+              <option value="">— None —</option>
+              <option>No placeholders; complete files only</option>
+              <option>Explain trade-offs for decisions</option>
+              <option>Prefer standard library only</option>
+              <option>Add inline comments</option>
+              <option>Performance first</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="title" style="margin-top:12px">
+          <h2 style="font-size:.98rem">Template fields</h2>
+        </div>
+        <div id="fields"></div>
+
+        <div class="inline" style="margin-top:12px">
+          <button class="btn" id="resetBtn" title="Clear fields for this template">Reset fields</button>
+          <button class="btn" id="clearBtn" title="Clear preview">Clear preview</button>
+        </div>
+      </div>
+
+      <!-- Live Preview -->
+      <div class="card">
+        <div class="title">
+          <h2>Preview</h2>
+          <div class="inline">
+            <button class="btn accent" id="copyBtn">Copy</button>
+            <span class="copy-note" id="copyNote">Ready to copy</span>
+            <span class="copy-note" id="counter" style="margin-left:auto">0 words • 0 chars</span>
+          </div>
+        </div>
+        <pre id="preview">(Select a template and fill the inputs. Your prompt will appear here.)</pre>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    Works offline • Your inputs & favorites are saved locally • No external libraries
+  </footer>
+
+  <script>
+    /* ---------------- Presets for beginner chips ---------------- */
+    const PRESETS = {
+      tech: ["Android + Kotlin + Compose", "React + TypeScript", "Vue 3 + Vite", "Node.js + Express", "Python + FastAPI", "PostgreSQL + RLS", "Supabase (Auth/DB/Storage)", "OpenStreetMap + Mapbox SDK"],
+      env: ["Windows 11", "macOS", "Linux (Ubuntu)", "Android (API 26+)", "iOS (16+)"],
+      constraints: ["No placeholders; complete files only", "Explain trade-offs for decisions", "Prefer standard library only", "Add inline comments", "A11y: keyboard & screen reader", "Performance first"],
+      style: ["Concise (bullet-first)", "Detailed (step-by-step)", "Senior Engineer tone", "Teacher/explainer tone"],
+      languages: ["Kotlin", "TypeScript", "JavaScript", "Python", "Go", "Rust", "Java", "C#"],
+      frameworks: ["Jetpack Compose", "Android Fragments", "React", "Next.js", "Vue 3", "Svelte", "Django", "FastAPI", "Spring Boot"],
+      tests: ["JUnit 5", "Jest", "Vitest", "PyTest", "Go test", "Kotest"]
+    };
+
+    /*** Templates (unchanged from your last message) *****************************/
+    const TEMPLATES = [
+      {
+        id: "algorithm", title: "Implementing a Specific Algorithm", desc: "Clean request with complexity analysis and example usage.", tags: ["fundamentals", "complexity", "example"], fields: [{ key: "algorithm", label: "Algorithm name", placeholder: "Dijkstra's shortest path" }, { key: "language", label: "Programming language", placeholder: "Python" }, { key: "notes", label: "Extra constraints (optional)", textarea: true, placeholder: "e.g., no external libs" }], tpl: `Implement a {{algorithm}} in {{language}}.
+Please include:
+1) The main function with clear parameter and return types
+2) Helper functions if necessary
+3) Time and space complexity analysis
+4) Example usage
+{{?notes}}
+Notes:
+{{notes}}
+{{/notes}}` },
+      {
+        id: "class-module", title: "Create a Class or Module", desc: "OOP-focused request with encapsulation and docstrings.", tags: ["OOP", "module", "class"], fields: [{ key: "thing", label: "Class/module name", placeholder: "RateLimiter" }, { key: "func", label: "Purpose", placeholder: "limit API calls per user per minute" }, { key: "language", label: "Programming language", placeholder: "TypeScript" }], tpl: `Create a {{thing}} for {{func}} in {{language}}.
+Include:
+1) Constructor/initialization
+2) Main methods with clear docstrings
+3) Any necessary private helper methods
+4) Proper encapsulation and adherence to OOP principles` },
+      {
+        id: "std-gen", title: "Standard Code Generation", desc: "Your go-to template with requirements and best practices.", tags: ["generation", "requirements"], fields: [{ key: "feature", label: "Specific functionality", placeholder: "image upload with progress and cancel", presets: ["Image upload with progress & cancel", "Auth login with email + OTP", "Debounced search with API", "CSV importer with validation", "Infinite scroll feed"] }, { key: "language", label: "Language/Framework", placeholder: "React + TypeScript", presets: [...PRESETS.languages, ...PRESETS.frameworks] }, { key: "req1", label: "Requirement 1", placeholder: "Show preview thumbnails", presets: ["Show preview thumbnails", "Drag & drop support", "Retry on failure", "Responsive layout", "Offline fallback"] }, { key: "req2", label: "Requirement 2", placeholder: "Limit to 10MB; accept png/jpg", presets: ["Limit to 10MB; accept png/jpg", "Handle 429 with backoff", "ARIA compliant", "Server-side validation"] }, { key: "req3", label: "Requirement 3", placeholder: "Accessible keyboard navigation", presets: ["Accessible keyboard navigation", "Type-safe data models", "No external UI libs", "Unit tests included"] }], tpl: `I need to implement {{feature}} in {{language}}.
+
+Key requirements:
+1) {{req1}}
+2) {{req2}}
+3) {{req3}}
+
+Please consider:
+- Error handling
+- Edge cases
+- Performance optimization
+- Best practices for {{language}}
+
+Please do not unnecessarily remove any comments or code.
+Generate the code with clear comments explaining the logic.` },
+      {
+        id: "code-review", title: "Code Review", desc: "Five-point code review with security and performance.", tags: ["review", "quality", "security"], fields: [{ key: "code", label: "Code to review", textarea: true, placeholder: "Paste code here" }], tpl: `Please review the following code:
+{{code}}
+
+Consider:
+1) Code quality and adherence to best practices
+2) Potential bugs or edge cases
+3) Performance optimizations
+4) Readability and maintainability
+5) Any security concerns
+
+Suggest improvements and explain your reasoning for each suggestion.` },
+      {
+        id: "unit-tests", title: "Generate Unit Tests", desc: "Covers normal, edge, and invalid inputs.", tags: ["testing", "unit", "qa"], fields: [{ key: "fn", label: "Function/Unit under test", textarea: true, placeholder: "Paste the function or API signature" }, { key: "framework", label: "Preferred testing framework", placeholder: "JUnit 5 / Jest / PyTest", presets: PRESETS.tests }], tpl: `Generate unit tests for the following function:
+{{fn}}
+
+Include tests for:
+1) Normal expected inputs
+2) Edge cases
+3) Invalid inputs
+
+Use {{framework}} syntax.` },
+      {
+        id: "explain", title: "Explain Code in Detail", desc: "Purpose, step-by-step, and limitations.", tags: ["explain", "learning"], fields: [{ key: "snippet", label: "Code section", textarea: true, placeholder: "Paste code to explain" }], tpl: `Can you explain the following part of the code in detail:
+{{snippet}}
+
+Specifically:
+1) What is the purpose of this section?
+2) How does it work step-by-step?
+3) Are there any potential issues or limitations with this approach?` },
+      {
+        id: "optimize", title: "Optimize Existing Code", desc: "Focus on performance plus trade-offs.", tags: ["performance", "optimization"], fields: [{ key: "code", label: "Code to optimize", textarea: true, placeholder: "Paste slow/hot code" }, { key: "constraints", label: "Constraints (optional)", placeholder: "e.g., memory limit 256MB" }], tpl: `Here’s a piece of code that needs optimization:
+{{code}}
+
+Please suggest optimizations to improve its performance.
+For each suggestion, explain the expected improvement and any trade-offs.
+{{?constraints}}
+Constraints: {{constraints}}
+{{/constraints}}` },
+      {
+        id: "refactor", title: "Refactor for Clean Code", desc: "Readability, maintainability, duplication.", tags: ["refactor", "clean code"], fields: [{ key: "code", label: "Code to refactor", textarea: true, placeholder: "Paste code to refactor" }], tpl: `Please refactor the following code to improve readability, maintainability, and adherence to best practices:
+{{code}}
+
+Keep functionality identical, but focus on:
+- Clear variable and function names
+- Modular structure
+- Reduced duplication
+- Comments where helpful` },
+      {
+        id: "debug", title: "Debugging Help", desc: "Identify cause, propose fixes, explain why.", tags: ["debug", "errors", "stacktrace"], fields: [{ key: "error", label: "Error message / symptoms", textarea: true, placeholder: "Stacktrace or description" }, { key: "code", label: "Relevant code (optional)", textarea: true, placeholder: "Paste snippet" }], tpl: `I’m getting the following error/bug:
+{{error}}
+{{?code}}
+
+Relevant code:
+{{code}}
+{{/code}}
+
+Please:
+1) Identify the likely cause(s)
+2) Suggest fixes
+3) Explain why your solution works` },
+      {
+        id: "convert", title: "Convert Between Languages", desc: "Idiomatic port from A → B.", tags: ["translate", "port", "language"], fields: [{ key: "from", label: "Source language", placeholder: "Python" }, { key: "to", label: "Target language", placeholder: "Go" }, { key: "code", label: "Code to convert", textarea: true, placeholder: "Paste code" }], tpl: `Convert the following {{from}} code into {{to}}:
+{{code}}
+
+Make sure the converted code is idiomatic, efficient, and uses best practices of the target language.` },
+      {
+        id: "api-client", title: "Generate API Client from Spec", desc: "Auth, types, retries, and examples.", tags: ["api", "client", "openapi"], fields: [{ key: "spec", label: "Spec (link or inline)", textarea: true, placeholder: "OpenAPI/Swagger URL or JSON" }, { key: "stack", label: "Language/Framework", placeholder: "TypeScript + Fetch" }], tpl: `Using this API spec/OpenAPI file:
+{{spec}}
+
+Generate a minimal, well-typed client in {{stack}} with:
+- Auth handling (bearer/api key)
+- Typed request/response models
+- Error handling and retries
+- Example usage for 2–3 common endpoints` },
+      {
+        id: "frontend-component", title: "Build a Frontend Component", desc: "Props, accessibility, states, examples.", tags: ["frontend", "react", "vue", "compose"], fields: [{ key: "framework", label: "UI stack", placeholder: "React + TypeScript", presets: PRESETS.frameworks }, { key: "feature", label: "Component purpose", placeholder: "File uploader with progress", presets: ["File uploader with progress", "Searchable dropdown", "Infinite list with skeletons", "Modal with form validation", "Responsive navbar", "Toast/notification system"] }], tpl: `Create a {{framework}} component for {{feature}}.
+Requirements:
+- Props/parameters with types
+- Accessibility and keyboard support
+- Loading/empty/error states
+- Example usage snippet
+- Basic tests (if applicable)` },
+      {
+        id: "data-model", title: "Design a Data Model", desc: "Tables/fields, relationships, indexes, security.", tags: ["data", "schema", "database", "RLS"], fields: [{ key: "domain", label: "Domain/problem", placeholder: "team task management" }, { key: "db", label: "Database", placeholder: "PostgreSQL" }], tpl: `Design a data model for {{domain}} using {{db}}.
+Include:
+- Entities/tables with fields and types
+- Relationships and constraints
+- Indexing strategy and expected query patterns
+- Security/RLS considerations (if applicable)` },
+      {
+        id: "sql", title: "Write/Optimize SQL", desc: "Produce & explain a performant query.", tags: ["sql", "postgres", "query"], fields: [{ key: "schema", label: "Schema context", textarea: true, placeholder: "List tables/columns/indexes relevant" }, { key: "goal", label: "Query goal", placeholder: "Top 10 active users in last 7 days" }], tpl: `Given the following tables and indexes:
+{{schema}}
+
+Write/optimize a SQL query to achieve:
+{{goal}}
+
+Explain:
+1) Why this approach is correct
+2) Complexity and potential bottlenecks
+3) Any indexes or constraints to add` },
+      {
+        id: "docs", title: "Write Documentation", desc: "Overview, API docs, examples, limitations.", tags: ["docs", "readme"], fields: [{ key: "code", label: "Codebase or module", textarea: true, placeholder: "Paste code or outline" }], tpl: `Generate documentation for the following code:
+{{code}}
+
+Include:
+1) High-level overview
+2) API/Function/Class docs (parameters, returns, examples)
+3) Quickstart / usage snippets
+4) Limitations and future improvements` },
+      {
+        id: "docstrings", title: "Add Docstrings & Types", desc: "Typed & documented without changing logic.", tags: ["docstrings", "typing"], fields: [{ key: "code", label: "Code needing docs", textarea: true, placeholder: "Paste code" }, { key: "style", label: "Style guide", placeholder: "Google / NumPy / Javadoc / KDoc / TS" }], tpl: `Add comprehensive docstrings and type annotations to this code:
+{{code}}
+
+Follow the conventions of {{style}}.
+Preserve behavior; do not alter logic.` },
+      {
+        id: "commit", title: "Craft a Commit Message", desc: "Conventional Commits output from diff.", tags: ["git", "commit", "changelog"], fields: [{ key: "diff", label: "Diff or change summary", textarea: true, placeholder: "Paste 'git diff' or notes" }], tpl: `Write a Conventional Commit-style message for these changes:
+{{diff}}
+
+Include:
+- type(scope): subject
+- body explaining rationale
+- BREAKING CHANGE: note (if applicable)` },
+      {
+        id: "pr-review", title: "Pull Request Review Checklist", desc: "Structured PR feedback request.", tags: ["pr", "review"], fields: [{ key: "diff", label: "PR link or diff", textarea: true, placeholder: "URL or unified diff" }], tpl: `Review this PR diff:
+{{diff}}
+
+Check:
+- Correctness and tests
+- Security and input validation
+- Performance/allocations
+- API surface and docs
+- Naming and structure
+Provide specific inline comments and a summary verdict.` }
+    ];
+
+    /*** State & Persistence ******************************************************/
+    function safeJSON(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return fallback;
+        const parsed = JSON.parse(raw);
+        return parsed ?? fallback;
+      } catch (e) {
+        console.warn('Bad JSON for', key, e);
+        return fallback;
+      }
+    }
+
+    const state = {
+      activeId: null,
+      values: safeJSON('pw_values', {}),
+      favs: new Set(safeJSON('pw_favs', [])),
+      theme: localStorage.getItem('pw_theme') || 'system',
+      globals: safeJSON('pw_globals', { context: '', style: '', constraints: '' }),
+      beginner: JSON.parse(localStorage.getItem('pw_beginner') || 'true')
+    };
+
+    function save() {
+      localStorage.setItem('pw_values', JSON.stringify(state.values));
+      localStorage.setItem('pw_favs', JSON.stringify([...state.favs]));
+      localStorage.setItem('pw_theme', state.theme);
+      localStorage.setItem('pw_globals', JSON.stringify(state.globals));
+      localStorage.setItem('pw_beginner', JSON.stringify(state.beginner));
+    }
+
+    /*** Helpers *******************************************************************/
+    const $ = (q, ctx = document) => ctx.querySelector(q);
+    const $$ = (q, ctx = document) => [...ctx.querySelectorAll(q)];
+    function setThemeBtn() { $('#themeBtn').textContent = "Theme: " + (state.theme[0].toUpperCase() + state.theme.slice(1)); }
+    function applyTheme() { document.documentElement.setAttribute('data-theme', state.theme); setThemeBtn(); }
+    function cycleTheme() { state.theme = state.theme === 'system' ? 'light' : state.theme === 'light' ? 'dark' : 'system'; applyTheme(); save(); }
+    applyTheme();
+
+    /*** Sidebar *******************************************************************/
+    const listEl = $('#templateList');
+    const countEl = $('#count');
+    const onlyFav = $('#onlyFav');
+    const search = $('#q');
+
+    function renderList() {
+      listEl.innerHTML = '';
+      const term = (search.value || '').toLowerCase();
+      let shown = 0;
+      TEMPLATES.forEach(t => {
+        const hay = (t.title + ' ' + t.desc + ' ' + t.tags.join(' ')).toLowerCase();
+        const keepFav = !onlyFav.checked || state.favs.has(t.id);
+        const keepTerm = !term || hay.includes(term);
+        if (!(keepFav && keepTerm)) return;
+        shown++;
+        const isFav = state.favs.has(t.id);
+        const item = document.createElement('div');
+        item.className = 'item' + (state.activeId === t.id ? ' active' : '');
+        item.dataset.id = t.id;
+        item.innerHTML = `
+          <div class="rowline">
+            <strong>${t.title}</strong>
+            <span class="favmark" aria-hidden="true">${isFav ? '★' : ''}</span>
+          </div>
+          <small>${t.desc}</small>`;
+        item.onclick = () => selectTemplate(t.id);
+        listEl.appendChild(item);
+      });
+      countEl.textContent = `${shown}/${TEMPLATES.length} templates`;
+    }
+    search.addEventListener('input', renderList);
+    onlyFav.addEventListener('change', renderList);
+
+    /*** Beginner Mode *************************************************************/
+    const beginnerToggle = $('#beginnerToggle');
+    beginnerToggle.checked = !!state.beginner;
+    beginnerToggle.onchange = () => { state.beginner = beginnerToggle.checked; save(); renderFields(); };
+
+    /*** Global chips **************************************************************/
+    const gContext = $('#global_context');
+    const gStyle = $('#global_style');
+    const gConstr = $('#global_constraints');
+    const ctxChips = $('#ctxChips');
+    const styleChips = $('#styleChips');
+    const constraintChips = $('#constraintChips');
+
+    function makeChip(text, onClick) {
+      const c = document.createElement('button');
+      c.type = 'button'; c.className = 'chip'; c.textContent = text;
+      c.onclick = () => onClick(text, c);
+      return c;
+    }
+    function appendBullet(el, str) {
+      const v = el.value.trim();
+      const bullet = /^- /.test(str) ? str : `- ${str}`;
+      const lines = v ? v.split(/\r?\n/).map(s => s.trim()) : [];
+      if (!lines.includes(bullet)) lines.push(bullet);
+      el.value = lines.join('\n');
+      el.dispatchEvent(new Event('input'));
+    }
+    function setIfEmpty(el, str) {
+      if (!el.value.trim()) el.value = str;
+      else if (!el.value.includes(str)) el.value += (el.value.endsWith(' ') ? '' : ' ') + str;
+      el.dispatchEvent(new Event('input'));
+    }
+
+    function buildGlobalChips() {
+      ctxChips.innerHTML = '';
+      [...PRESETS.tech, ...PRESETS.env, "Constraints", "Environment Details"].forEach(label => {
+        ctxChips.appendChild(makeChip(label, (text, chip) => {
+          chip.dataset.active = '1';
+          appendBullet(gContext, text);
+        }));
+      });
+      styleChips.innerHTML = '';
+      PRESETS.style.forEach(s => styleChips.appendChild(makeChip(s, (text, chip) => {
+        gStyle.value = text; chip.dataset.active = '1'; gStyle.dispatchEvent(new Event('input'));
+      })));
+      constraintChips.innerHTML = '';
+      PRESETS.constraints.forEach(c => constraintChips.appendChild(makeChip(c, (text, chip) => {
+        gConstr.value = text; chip.dataset.active = '1'; gConstr.dispatchEvent(new Event('input'));
+      })));
+    }
+    buildGlobalChips();
+
+    /*** Select template + render fields *******************************************/
+    const titleEl = $('#tplTitle'), descEl = $('#tplDesc'), tagsEl = $('#tplTags'), fieldsEl = $('#fields');
+    const favToggle = $('#favToggle');
+
+    function selectTemplate(id) {
+      const t = TEMPLATES.find(x => x.id === id); if (!t) return;
+      state.activeId = id;
+      $$('.item', listEl).forEach(i => i.classList.toggle('active', i.dataset.id === id));
+      titleEl.textContent = t.title;
+      descEl.textContent = t.desc;
+      tagsEl.innerHTML = t.tags.map(tag => `<span class="tag">${tag}</span>`).join('');
+      favToggle.classList.toggle('active', state.favs.has(id));
+      renderFields(); renderPreview(); save(); renderList(); // refresh list so stars reflect current selection's fav
+    }
+    favToggle.onclick = () => {
+      if (!state.activeId) return;
+      const id = state.activeId;
+      if (state.favs.has(id)) state.favs.delete(id); else state.favs.add(id);
+      favToggle.classList.toggle('active', state.favs.has(id));
+      save(); renderList();
+    };
+
+    function renderFields() {
+      const t = TEMPLATES.find(x => x.id === state.activeId);
+      fieldsEl.innerHTML = ''; if (!t) return;
+
+      const vals = state.values[t.id] || {};
+      t.fields.forEach(f => {
+        const wrap = document.createElement('div');
+        wrap.style.marginBottom = '10px';
+
+        const label = document.createElement('label');
+        label.textContent = f.label;
+        wrap.appendChild(label);
+
+        // Beginner chips if presets exist
+        if (state.beginner && f.presets && f.presets.length) {
+          const chips = document.createElement('div'); chips.className = 'chips';
+          f.presets.forEach(p => {
+            chips.appendChild(makeChip(p, (text, chip) => {
+              const ctrl = wrap.querySelector('textarea, input, select');
+              chip.dataset.active = '1';
+              if (f.textarea) appendBullet(ctrl, text);
+              else setIfEmpty(ctrl, text);
+            }));
+          });
+          wrap.appendChild(chips);
+        }
+
+        // Control
+        let ctrl;
+        if (f.textarea) ctrl = document.createElement('textarea');
+        else if (f.options) {
+          ctrl = document.createElement('select');
+          f.options.forEach(o => {
+            const opt = document.createElement('option'); opt.value = o; opt.textContent = o; ctrl.appendChild(opt);
+          });
+        } else {
+          ctrl = document.createElement('input'); ctrl.type = 'text';
+        }
+        ctrl.placeholder = f.placeholder || '';
+        ctrl.value = vals[f.key] || '';
+        ctrl.oninput = () => { state.values[t.id] = state.values[t.id] || {}; state.values[t.id][f.key] = ctrl.value; save(); renderPreview(); };
+        wrap.appendChild(ctrl);
+        fieldsEl.appendChild(wrap);
+      });
+    }
+
+    /*** Globals change ************************************************************/
+    function loadGlobals() {
+      const g = state.globals || {};
+      gContext.value = g.context || '';
+      gStyle.value = g.style || '';
+      gConstr.value = g.constraints || '';
+    }
+    function updateGlobals() {
+      state.globals = {
+        context: gContext.value || '',
+        style: gStyle.value || '',
+        constraints: gConstr.value || ''
+      };
+      save(); renderPreview();
+    }
+    [gContext, gStyle, gConstr].forEach(el => el.addEventListener('input', updateGlobals));
+    loadGlobals();
+
+    /*** Reset/Clear ***************************************************************/
+    $('#resetBtn').onclick = () => {
+      if (!state.activeId) return;
+      delete state.values[state.activeId];
+      save(); renderFields(); renderPreview();
+    };
+    $('#clearBtn').onclick = () => {
+      $('#preview').textContent = '';
+      $('#copyNote').textContent = 'Cleared';
+      updateCounter('');
+    };
+
+    /*** Render template + preview *************************************************/
+    function renderTemplate(tpl, vals) {
+      tpl = tpl.replace(/\{\{\?(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (_, k, inner) => (vals[k] && String(vals[k]).trim()) ? inner : '');
+      tpl = tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => (k in vals && vals[k] !== undefined) ? String(vals[k]) : `[${k}]`);
+      return tpl.trim();
+    }
+    function renderPreview() {
+      const pre = $('#preview');
+      const t = TEMPLATES.find(x => x.id === state.activeId);
+      if (!t) { const txt = '(Select a template and fill the inputs. Your prompt will appear here.)'; pre.textContent = txt; updateCounter(txt); return; }
+      const vals = state.values[state.activeId] || {};
+      let text = renderTemplate(t.tpl, vals);
+
+      // Append global add-ons
+      const g = state.globals || {};
+      const blocks = [];
+      if (g.context && g.context.trim()) blocks.push(`\n\nContext:\n${g.context.trim()}`);
+      if (g.style) blocks.push(`\n\nPreferred style: ${g.style}`);
+      if (g.constraints) blocks.push(`\n\nConstraints: ${g.constraints}`);
+      text += blocks.join('');
+
+      pre.textContent = text;
+      updateCounter(text);
+    }
+
+    /*** Copy / Export / Import ****************************************************/
+    $('#copyBtn').onclick = async () => {
+      const text = $('#preview').textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        const note = $('#copyNote'); note.textContent = 'Copied ✔'; setTimeout(() => note.textContent = 'Ready to copy', 1200);
+      } catch (e) { alert('Copy failed: ' + e); }
+    };
+    $('#exportBtn').onclick = () => {
+      const data = { values: state.values, favs: [...state.favs], globals: state.globals, theme: state.theme, beginner: state.beginner };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'prompt-workbench-data.json'; a.click();
+    };
+    $('#importFile').onchange = async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      const text = await f.text();
+      try {
+        const data = JSON.parse(text);
+        if (data.values) state.values = data.values;
+        if (Array.isArray(data.favs)) state.favs = new Set(data.favs);
+        if (data.globals) state.globals = data.globals;
+        if (data.theme) state.theme = data.theme;
+        if (typeof data.beginner === 'boolean') state.beginner = data.beginner;
+        save(); loadGlobals(); renderList(); if (state.activeId) selectTemplate(state.activeId); applyTheme();
+        beginnerToggle.checked = state.beginner;
+      } catch (err) { alert('Invalid JSON: ' + err); }
+    };
+
+    /*** Keyboard + Counters + Theme ***********************************************/
+    window.addEventListener('keydown', e => { if (e.key === '/') { e.preventDefault(); search.focus(); } });
+    function updateCounter(text) {
+      const chars = text.length;
+      const words = (text.trim() ? text.trim().split(/\s+/).length : 0);
+      $('#counter').textContent = `${words} words • ${chars} chars`;
+    }
+    $('#themeBtn').onclick = cycleTheme;
+
+    /*** Boot **********************************************************************/
+    function renderAll() { renderList(); if (TEMPLATES.length) selectTemplate(TEMPLATES[0].id); }
+    renderAll();
+  </script>
+</body>
+
+</html>
